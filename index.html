@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>kikitamu のミニゲーム</title>
+<meta name="description" content="ブラウザでそのまま遊べる自作ミニゲーム。友達とネットで遊べるものもあります。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: a shelf of game cartridges. Short header, a two-column grid of cards (one column on phones), then how to play online. */
+:root {
+  --night: #0c0f1c;
+  --panel: #151a2c;
+  --line: #2a3150;
+  --ink: #ece6d6;
+  --muted: #959cba;
+  --lamp: #f0b84c;
+  --f-pixel: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--night); }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 48px;
+}
+a { color: inherit; }
+a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; }
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+header h1 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: clamp(30px, 6vw, 46px); line-height: 1.15; letter-spacing: .06em; text-wrap: balance; }
+header h1 span { color: var(--lamp); }
+header p { margin: 10px 0 0; color: var(--muted); max-width: 40em; }
+.shelf { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 720px) { .shelf { grid-template-columns: minmax(0, 1fr); } }
+.game { background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; }
+.game .shot { display: block; aspect-ratio: 16 / 10; background: #070910; border-bottom: 1px solid var(--line); overflow: hidden; }
+.game .shot img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; transition: transform .25s; }
+.game .shot:hover img { transform: scale(1.03); }
+.game .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.game h2 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: 24px; line-height: 1.2; color: var(--c); }
+.game h2 small { font-family: var(--f-body); font-size: 12px; color: var(--muted); margin-left: .6em; letter-spacing: .04em; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.tags li { font-size: 12px; padding: 1px 8px; border: 1px solid var(--line); color: var(--muted); }
+.tags li.net { border-color: var(--c); color: var(--c); }
+.game p { margin: 0; }
+.play { margin-top: auto; align-self: flex-start; font-family: var(--f-pixel); font-size: 16px; text-decoration: none; background: var(--c); color: #12100a; padding: 6px 18px; }
+.play:hover { filter: brightness(1.1); }
+.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 28px; border-top: 1px solid var(--line); padding-top: 22px; }
+.how h2 { margin: 0 0 6px; font-family: var(--f-pixel); font-weight: 400; font-size: 18px; color: var(--lamp); }
+.how ol, .how ul { margin: 0; padding-left: 1.3em; }
+.how li + li { margin-top: 4px; }
+footer { color: var(--muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .game .shot img { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>kikitamu の<span>ミニゲーム</span></h1>
+    <p>ブラウザでそのまま遊べる自作のミニゲームです。インストールはいりません。「ネットで」と書いてあるものは、招待リンクを送れば友達と一緒に遊べます。</p>
+  </header>
+
+  <ul class="shelf">
+    <li class="game" style="--c:#ff5d73">
+      <a class="shot" href="yogiri/" tabindex="-1" aria-hidden="true"><img src="img/yogiri.webp" alt="" width="640" height="400" loading="lazy"></a>
+      <div class="body">
+        <h2>夜霧ノ怪盗<small>よぎりのかいとう</small></h2>
+        <ul class="tags"><li>推理・ボードゲーム</li><li>ターン制</li><li>ひとり（CPU の怪盗）</li><li class="net">ネットで 3〜4 人</li></ul>
+        <p>姿の見えない怪盗を、使った乗り物の記録と時々の目撃から、探偵たちが相談して追い詰める。怪盗は宝を盗んで町の外へ。霧の港町・雪の温泉町・運河の町の 3 つの地図。</p>
+        <a class="play" href="yogiri/">遊ぶ</a>
+      </div>
+    </li>
+    <li class="game" style="--c:#ffd23f">
+      <a class="shot" href="mitsukage/" tabindex="-1" aria-hidden="true"><img src="img/mitsukage.webp" alt="" width="640" height="400" loading="lazy"></a>
+      <div class="body">
+        <h2>三ツ影<small>みつかげ</small></h2>
+        <ul class="tags"><li>協力・潜入</li><li>リアルタイム</li><li>ひとり（3 人を切りかえ）</li><li class="net">ネットで 3 人</li></ul>
+        <p>陽動・鍵開け・ハッカーの 3 人組で、見張りの目をかいくぐって金庫を破る。赤外線やきしむ床、金庫の番号は、それぞれの画面にしか見えない。声をかけ合って進む。全 3 ステージ。</p>
+        <a class="play" href="mitsukage/">遊ぶ</a>
+      </div>
+    </li>
+    <li class="game" style="--c:#ff8d3a">
+      <a class="shot" href="https://kikitamu.github.io/houkago-banchou/" tabindex="-1" aria-hidden="true"><img src="img/houkago.webp" alt="" width="640" height="400" loading="lazy"></a>
+      <div class="body">
+        <h2>放課後番長<small>ほうかごばんちょう</small></h2>
+        <ul class="tags"><li>喧嘩アクション</li><li>ファミコン風</li><li>ひとり・CPU と 3 人</li><li class="net">ネットで 3 人</li></ul>
+        <p>くにおくん風の喧嘩アクション。3 人で手下と番長を倒す「番長戦」と、クロスカントリーや勝ち抜き格闘など 4 種目を競う「大運動会」。</p>
+        <a class="play" href="https://kikitamu.github.io/houkago-banchou/">遊ぶ</a>
+      </div>
+    </li>
+    <li class="game" style="--c:#7fd4c8">
+      <a class="shot" href="haishaban/" tabindex="-1" aria-hidden="true"><img src="img/haishaban.webp" alt="" width="640" height="400" loading="lazy"></a>
+      <div class="body">
+        <h2>配車盤<small>はいしゃばん</small></h2>
+        <ul class="tags"><li>パズル</li><li>配送ルート</li><li>ひとり</li></ul>
+        <p>トラックの配達の順番を組んで、燃料と人件費をおさえて利益を出す配送パズル。全 9 ステージ。AI 配車係の記録に挑む。</p>
+        <a class="play" href="haishaban/">遊ぶ</a>
+      </div>
+    </li>
+  </ul>
+
+  <section class="how" aria-label="ネットで遊ぶには">
+    <div>
+      <h2>友達とネットで遊ぶ</h2>
+      <ol>
+        <li>1 人がゲームを開き、「ネットで」を選んで部屋をつくる。</li>
+        <li>出てきた「招待リンクをコピー」を押して、Discord などに貼る。</li>
+        <li>友達はリンクを開くだけで部屋に入れる。そろったら、部屋をつくった人がスタート。</li>
+      </ol>
+    </div>
+    <div>
+      <h2>知っておくと安心なこと</h2>
+      <ul>
+        <li>部屋をつくった人のブラウザでゲームを進めているので、その人がページを閉じると全員の試合が終わる。</li>
+        <li>会社や学校のネットワークなど、回線によってはつながらないことがある。そのときはスマホのテザリングなど別の回線で試す。</li>
+        <li>記録やセーブは、遊んだブラウザの中にだけ残る。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>どのゲームも 1 枚の HTML ファイルでできています。遊び方は各ゲームのページの下に書いてあります。</footer>
+</div>
+</html>

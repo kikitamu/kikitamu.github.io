@@ -1,0 +1,2216 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>三ツ影</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* Layout: a night-shift console. Alarm strip on top, the pixel screen with the crew panel at its side, then the crew cards and the controls. */
+:root {
+  --night: #0b0e1a;
+  --panel: #131829;
+  --line: #262e4a;
+  --ink: #e9e4d2;
+  --muted: #8e95b3;
+  --alarm: #ff4d5e;
+  --gold: #e8c65a;
+  --decoy: #ff7a59;
+  --lock: #ffd23f;
+  --hack: #4fd1a5;
+  --well: #05070f;
+  --f-pixel: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--night); }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font-family: var(--f-body); font-size: 14px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 40px;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--lock); outline-offset: 2px; }
+.cab { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.logo { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: clamp(32px, 6.5vw, 46px); line-height: 1; letter-spacing: .14em;
+  color: var(--ink); text-shadow: -4px 3px 0 var(--decoy), 0 4px 0 var(--lock), 4px 3px 0 var(--hack); }
+.tag { margin: 10px 0 0; color: var(--muted); font-size: 12px; letter-spacing: .06em; }
+.tools { display: flex; gap: 8px; }
+.tool { font-family: var(--f-pixel); font-size: 13px; background: var(--panel); border: 2px solid var(--line); padding: 4px 10px; }
+.tool:hover { border-color: var(--muted); }
+
+.hud { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-family: var(--f-pixel); font-size: 14px; }
+.alarm { display: flex; align-items: center; gap: 10px; flex: 1 1 300px; min-width: 0; }
+.alarm .lbl { color: var(--alarm); letter-spacing: .1em; }
+.gauge { position: relative; flex: 1; height: 14px; background: var(--well); border: 2px solid var(--line); min-width: 120px; }
+.gauge i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--lock), var(--alarm)); transition: width .3s; }
+.gauge s { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--line); }
+.alarm b { font-weight: 400; min-width: 4.5em; }
+.alarm b[data-lv="2"], .alarm b[data-lv="3"] { color: var(--alarm); }
+.stats { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); }
+.stats span b { color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 12px; align-items: start; }
+@media (max-width: 780px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.screenwrap { position: relative; border: 2px solid var(--line); background: var(--well); }
+#hudText { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+#screen { display: block; width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
+.ov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5, 7, 15, .86);
+  overflow-y: auto; padding: 14px; }
+.ovbox { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 10px; margin: auto; }
+.ovh { margin: 0; font-family: var(--f-pixel); color: var(--muted); font-size: 12px; letter-spacing: .12em; }
+.stages, .modes, .roleSlots { display: grid; gap: 6px; }
+.modes { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.roleSlots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pick { text-align: left; background: var(--panel); border: 2px solid var(--line); padding: 6px 10px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.pick:hover:not(:disabled) { border-color: var(--muted); }
+.pick[aria-pressed="true"] { border-color: var(--lock); }
+.pick:disabled { opacity: .45; cursor: default; }
+.pick .no { font-family: var(--f-pixel); color: var(--muted); font-size: 12px; }
+.pick .nm { font-family: var(--f-pixel); font-size: 16px; }
+.pick .bs { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.slot { background: var(--panel); border: 2px solid var(--line); border-top: 4px solid var(--c); padding: 6px 8px; display: flex; flex-direction: column; text-align: left; min-width: 0; }
+.slot b { font-family: var(--f-pixel); font-weight: 400; color: var(--c); }
+.slot span { font-size: 12px; color: var(--muted); }
+.slot.me span { color: var(--ink); }
+.go { font-family: var(--f-pixel); font-size: 16px; background: var(--lock); color: #1a1405; border: 0; padding: 8px 16px; }
+.go:hover { filter: brightness(1.1); }
+.plain { font-family: var(--f-pixel); background: transparent; border: 2px solid var(--line); padding: 6px 12px; }
+.plain:hover { border-color: var(--muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ovnote, .netMsg { margin: 0; color: var(--muted); font-size: 12px; }
+.netMsg { color: var(--ink); }
+.join { display: flex; gap: 6px; }
+#netCode { width: 7em; font-family: var(--f-pixel); font-size: 16px; background: var(--well); color: var(--ink); border: 2px solid var(--line); padding: 4px 8px; }
+.roomno { font-family: var(--f-pixel); font-size: 24px; color: var(--lock); letter-spacing: .2em; }
+.big { margin: 0; font-family: var(--f-pixel); font-size: 30px; line-height: 1.2; }
+.big.ok { color: var(--hack); } .big.ng { color: var(--alarm); }
+.res { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 16px; font-variant-numeric: tabular-nums; }
+.res dt { color: var(--muted); } .res dd { margin: 0; }
+.rank { font-family: var(--f-pixel); font-size: 22px; color: var(--lock); }
+
+.side { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.box { background: var(--panel); border: 1px solid var(--line); padding: 10px; min-width: 0; }
+.box h2 { margin: 0 0 6px; font-family: var(--f-pixel); font-weight: 400; font-size: 13px; color: var(--muted); letter-spacing: .08em; }
+.box h2 small { font-size: 11px; letter-spacing: 0; }
+#mini { display: block; width: 100%; image-rendering: pixelated; background: var(--well); }
+.roles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rbtn { width: 100%; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 0 8px; align-items: center; text-align: left;
+  background: transparent; border: 1px solid transparent; padding: 3px 6px; }
+.rbtn i { width: 10px; height: 10px; background: var(--c); }
+.rbtn .rn { font-family: var(--f-pixel); color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rbtn .rn small { color: var(--muted); margin-left: .5em; font-size: 11px; }
+.rbtn .ro { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rbtn .rs { grid-column: 2 / 4; font-size: 11px; color: var(--muted); min-height: 1em; }
+.rbtn.on { border-color: var(--c); background: rgba(255, 255, 255, .03); }
+.rbtn:disabled { cursor: default; }
+.notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; max-height: 220px; overflow-y: auto; }
+.notes li { overflow-wrap: anywhere; }
+.notes .who { font-family: var(--f-pixel); font-size: 11px; margin-right: .4em; }
+.notes .empty { color: var(--muted); font-size: 12px; }
+.prompt { font-family: var(--f-pixel); font-size: 14px; min-height: 1.6em; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); overflow-wrap: anywhere; }
+
+.pad { display: none; gap: 12px; justify-content: space-between; align-items: center; user-select: none; -webkit-user-select: none; touch-action: none; }
+@media (pointer: coarse) { .pad { display: flex; } }
+.dpad { position: relative; width: 132px; height: 132px; border-radius: 50%; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
+.knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: var(--line); }
+.btns { display: grid; grid-template-columns: repeat(2, 64px); gap: 8px; }
+.pb { height: 52px; font-family: var(--f-pixel); font-size: 13px; background: var(--panel); border: 2px solid var(--line); touch-action: none; }
+.pb.lit { border-color: var(--lock); color: var(--lock); }
+
+.crew { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c); padding: 10px 12px; min-width: 0; }
+.card h3 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: 17px; color: var(--c); }
+.card h3 small { color: var(--muted); font-size: 12px; margin-left: .5em; }
+.card ul { margin: 6px 0 0; padding-left: 1.1em; font-size: 13px; }
+.card li + li { margin-top: 2px; }
+.howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; font-size: 13px; }
+.howto h2 { margin: 0 0 4px; font-family: var(--f-pixel); font-weight: 400; font-size: 14px; color: var(--muted); }
+.keys { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+.keys dt { font-family: var(--f-pixel); color: var(--lock); white-space: nowrap; }
+.keys dd { margin: 0; }
+.howto p { margin: 0 0 6px; }
+.saved { margin: 0; color: var(--muted); font-size: 12px; }
+#selftest { white-space: pre-wrap; font-size: 11px; background: var(--panel); padding: 8px; overflow-x: auto; }
+@media (prefers-reduced-motion: reduce) { .gauge i { transition: none; } }
+</style>
+
+<div class="cab">
+  <header class="top">
+    <div>
+      <h1 class="logo">三ツ影</h1>
+      <p class="tag">三人組の夜盗。それぞれの画面にしか見えないものを、声で伝え合って金庫を開ける。</p>
+    </div>
+    <div class="tools">
+      <button class="tool" id="btnPause" type="button">一時停止 P</button>
+      <button class="tool" id="btnMute" type="button">音 ON</button>
+    </div>
+  </header>
+
+  <div class="hud">
+    <div class="alarm">
+      <span class="lbl">警報</span>
+      <div class="gauge" aria-hidden="true"><i id="alarmBar"></i><s style="left:25%"></s><s style="left:50%"></s><s style="left:75%"></s></div>
+      <b id="alarmLv" data-lv="0">平常</b>
+    </div>
+    <div class="stats">
+      <span id="hStage">月見台美術館</span>
+      <span>時間 <b id="hTime">00:00</b></span>
+      <span>番号のヒント <b id="hHint">0/3</b></span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="screenwrap">
+      <canvas id="screen" width="384" height="216" aria-label="ゲーム画面"></canvas>
+      <canvas id="hudText" width="384" height="216" aria-hidden="true"></canvas>
+
+      <div class="ov" id="ovTitle">
+        <div class="ovbox">
+          <p class="ovh">ステージ</p>
+          <div class="stages" id="stageList"></div>
+          <p class="ovh">遊び方</p>
+          <div class="modes">
+            <button class="pick" type="button" data-m="solo"><span class="nm">ひとりで</span><span class="no">3 人を C キーで切りかえ</span></button>
+            <button class="pick" type="button" data-m="net"><span class="nm">ネットで</span><span class="no">3 人まで。招待リンクで集まる</span></button>
+          </div>
+          <div class="row"><button class="go" id="btnStart" type="button">はじめる（Enter）</button></div>
+        </div>
+      </div>
+
+      <div class="ov" id="ovNet" hidden>
+        <div class="ovbox">
+          <p class="ovh">ネットで遊ぶ（3 人まで）</p>
+          <div class="row" id="netChoose">
+            <button class="go" id="btnHost" type="button">部屋をつくる</button>
+            <div class="join"><input id="netCode" inputmode="numeric" maxlength="4" placeholder="部屋番号" aria-label="部屋番号"><button class="plain" id="btnJoin" type="button">入る</button></div>
+          </div>
+          <div id="netRoom" hidden>
+            <div class="row"><span>部屋番号</span><span class="roomno" id="netNo">----</span><button class="plain" id="btnCopy" type="button">招待リンクをコピー</button></div>
+            <p class="ovh" style="margin-top:8px">役（押すと自分の役にする）<span id="netPeople"></span></p>
+            <div class="roleSlots" id="roleSlots"></div>
+          </div>
+          <p class="netMsg" id="netMsg"></p>
+          <div class="row"><button class="go" id="btnNetStart" type="button" hidden>スタート（Enter）</button><button class="plain" id="btnNetBack" type="button">もどる</button></div>
+        </div>
+      </div>
+
+      <div class="ov" id="ovResult" hidden>
+        <div class="ovbox">
+          <p class="big" id="resHead">脱出成功</p>
+          <p class="ovnote" id="resWhy"></p>
+          <dl class="res" id="resStats"></dl>
+          <div class="row" id="resBtns">
+            <button class="go" id="btnNext" type="button">次のステージへ</button>
+            <button class="plain" id="btnAgain" type="button">もう一度</button>
+            <button class="plain" id="btnToTitle" type="button">タイトルへ</button>
+          </div>
+          <p class="ovnote" id="resNote"></p>
+        </div>
+      </div>
+
+      <div class="ov" id="ovPause" hidden>
+        <div class="ovbox" style="align-items:center">
+          <p class="big">一時停止</p>
+          <div class="row"><button class="go" id="btnResume" type="button">つづける（P）</button><button class="plain" id="btnQuit" type="button">タイトルへ</button></div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="box">
+        <h2>見取り図</h2>
+        <canvas id="mini" width="120" height="75" aria-label="見取り図"></canvas>
+      </div>
+      <div class="box">
+        <h2>三人組</h2>
+        <ul class="roles" id="roles"></ul>
+      </div>
+      <div class="box">
+        <h2>手帳 <small>（この画面にだけ出る）</small></h2>
+        <ul class="notes" id="notes"></ul>
+      </div>
+    </aside>
+  </div>
+
+  <div class="prompt" id="prompt" aria-live="polite">ステージと遊び方を選んで、はじめる。</div>
+
+  <div class="pad" id="pad">
+    <div class="dpad" id="dpad"><div class="knob" id="knob"></div></div>
+    <div class="btns">
+      <button class="pb" type="button" data-a="act">Z 調べる</button>
+      <button class="pb" type="button" data-a="skill">X 特技</button>
+      <button class="pb" type="button" id="padSneak">しのび足</button>
+      <button class="pb" type="button" id="padSwap">交代</button>
+    </div>
+  </div>
+
+  <section class="crew" aria-label="役の説明">
+    <div class="card" style="--c: var(--decoy)">
+      <h3>陽動<small>ツバメ</small></h3>
+      <ul>
+        <li>足が速い。見つかっても警報の上がり方が小さい</li>
+        <li>X で石を投げて物音を立て、見張りをおびき寄せる</li>
+        <li>見張りの足音が壁ごしに聞こえる（画面に足あとが出る）</li>
+        <li>見張りの雑談に近づくと、金庫の番号を盗み聞きできる</li>
+      </ul>
+    </div>
+    <div class="card" style="--c: var(--lock)">
+      <h3>鍵開け<small>クロ</small></h3>
+      <ul>
+        <li>鍵のかかった扉を開けられるのはこの人だけ（Z 長押し）</li>
+        <li>金庫のダイヤルを回せるのもこの人だけ。番号は仲間から聞く</li>
+        <li>きしむ床が見える。踏むと大きな音が出る</li>
+      </ul>
+    </div>
+    <div class="card" style="--c: var(--hack)">
+      <h3>ハッカー<small>ネズ</small></h3>
+      <ul>
+        <li>パソコンを読んで、金庫の番号のヒントを手に入れる</li>
+        <li>赤外線が見える。警備端末に入ると見取り図に見張りが出る</li>
+        <li>制御盤で、点滅しない赤外線を切れる</li>
+        <li>X で近くのカメラを 8 秒止める</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="howto" aria-label="操作">
+    <div>
+      <h2>操作</h2>
+      <dl class="keys">
+        <dt>矢印 / WASD</dt><dd>移動</dd>
+        <dt>Shift</dt><dd>しのび足（押している間。足音が出ない、遅い）</dd>
+        <dt>Z / Space</dt><dd>調べる・開ける・隠れる（作業は長押し）</dd>
+        <dt>X</dt><dd>特技（石を投げる / カメラを止める）</dd>
+        <dt>C / Tab</dt><dd>自分の役を切りかえる（受け持ちが 2 人以上のとき）</dd>
+        <dt>P / Esc</dt><dd>一時停止（ひとりのときだけ）</dd>
+        <dt>M</dt><dd>音の切りかえ</dd>
+      </dl>
+    </div>
+    <div>
+      <h2>ねらい</h2>
+      <p>金庫を開けてお宝を盗み、入口（緑の床）まで運べば成功。警報が満タンになるか、15 分たつと失敗。</p>
+      <p>見張りの視界（黄色い光）に入ると「?」が出て、たまると「!」で追いかけてくる。物陰やロッカーで振り切る。</p>
+      <p>自分の画面に見えるのは、自分の受け持ちの目に入るものだけ。仲間の画面は見えないので、Discord などで声をかけ合う。</p>
+    </div>
+  </section>
+  <p class="saved" id="saved"></p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('screen'), ctx = cv.getContext('2d');
+const mini = $('mini'), mctx = mini.getContext('2d');
+const VW = 384, VH = 216, TS = 16, DEG = Math.PI / 180;
+const SIGHT = 8.5, FOV = 100 * DEG, CAM_R = 6, CAM_FOV = 50 * DEG;
+const LIMIT = 15 * 60 * 60, TALK_NEED = 200, TALK_R = 5;
+const FLOORS = '.,:;E';
+const ACTS = ['up', 'down', 'left', 'right', 'act', 'skill', 'sneak'];
+const NONE = Object.freeze(Object.fromEntries(ACTS.map(a => [a, false])));
+const DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const r2 = v => Math.round(v * 100) / 100;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const fmt = f => { const s = Math.floor(f / 60); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function angDiff(a, b) { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
+const face4 = a => ((Math.round(a / (Math.PI / 2)) % 4) + 4) % 4;   // 0 right, 1 down, 2 left, 3 up
+
+// ---------- crew ----------
+const ROLES = [
+  { name: '陽動', code: 'ツバメ', color: '#ff7a59', speed: 4.6 },
+  { name: '鍵開け', code: 'クロ', color: '#ffd23f', speed: 3.8 },
+  { name: 'ハッカー', code: 'ネズ', color: '#4fd1a5', speed: 3.8 },
+];
+const LEVEL_NAME = ['平常', '注意', '警戒', '厳戒'];
+const LEVEL_NOTE = ['', '見張りの足が速くなった', '見張りが 1 人増えた。遠くまで見える', 'さらに見張りが増えた。あとがない'];
+
+// ---------- stages ----------
+// Map: # wall, . tile floor, , carpet, : wood, ; grass, E exit, D door, L locked door,
+// o low furniture (blocks walking, not sight), h tall furniture (blocks both), K locker,
+// P computer, T security terminal, C laser control panel, V safe.
+// Guards: patrol r = [[x, y, wait sec]...], post looks = [deg...], talk = facing + which talk spot.
+// Cameras [x, y, facing deg, sweep deg, period sec] sit on wall tiles. Lasers run along floor cells.
+const STAGES = [
+  {
+    name: '月見台美術館', no: 'その一', par: 300,
+    map: [
+      '########################################',
+      '#:::::::::#...#..........#...#.h.h.h.h.#',
+      '#:::::::::#...#....V.....#...#.........#',
+      '#::::o::::#...#..........#...#.........#',
+      '#:::::::::#...#..........#...#.h.h...P.#',
+      '#K::::::::#...#####L######...#.........#',
+      '#:::::::::#..................#.h.h.h.h.#',
+      '#::::::::K#..................#.........#',
+      '#####D#######D############D#######L#####',
+      '#,,,,,,,,,#..................#,,,,,,,,,#',
+      '#,h,,,,,h,#..................#,h,,,,,h,#',
+      '#,,,,,,,,,#...oo........oo...#,,,,,,,,,#',
+      '#,,,,,,,,,#........hh........#,,,,,,,,,#',
+      '#,,,,,,,,,D........hh........D,,,,,,,,,#',
+      '#,,,,,,,,,#........hh........#,,,,,,,,,#',
+      '#,,,,,,,,,#...oo........oo...#,,,,,,,,,#',
+      '#,h,,,,,h,#..................#,h,,,,,h,#',
+      '#,,,,,,,,,#..................#,,,,,,,,,#',
+      '#####D#############..#############L#####',
+      '#.........#..................#.........#',
+      '#.Po......#.o..............o.#.......T.#',
+      '#.........D..................#K........#',
+      '#.oo...oo.#..................#.......C.#',
+      '#K........#.......EEEE.......#.........#',
+      '########################################',
+    ],
+    spawn: [[18.5, 22.5], [19.5, 22.5], [20.5, 22.5]],
+    labels: [['休憩室', 5.5, 1], ['金庫室', 21.5, 1], ['ホール', 19.5, 6], ['倉庫', 34.5, 2], ['西展示室', 5.5, 9], ['大展示室', 19.5, 9],
+      ['東展示室', 34.5, 9], ['事務室', 5.5, 19], ['エントランス', 19.5, 19], ['警備室', 34.5, 19]],
+    guards: [
+      { k: 'talk', x: 3, y: 3, face: 0, talk: 0 }, { k: 'talk', x: 7, y: 3, face: 180, talk: 0 },
+      { k: 'patrol', r: [[12, 10, 1.5], [27, 10, .5], [27, 16, 1.5], [12, 16, .5]] },
+      { k: 'patrol', r: [[12, 7, 2], [27, 7, 2]] },
+      { k: 'patrol', r: [[32, 11, 1], [36, 11, 0], [36, 15, 1], [32, 15, 0]] },
+    ],
+    talks: [[5.5, 3.5, '休憩室']],
+    cams: [[16, 5, 90, 55, 7], [29, 10, 180, 40, 6]],
+    lasers: [{ x: 15, y: 6, len: 2, v: 1, blink: [1.8, 1.2] }, { x: 24, y: 6, len: 2, v: 1, blink: [1.8, 1.2], ph: 1.5 }, { x: 15, y: 3, len: 10 }],
+    creaky: [[19, 17], [20, 17], [33, 17], [34, 17], [20, 6], [5, 7], [36, 4]],
+    reinf: [[[19, 20, 1], [19, 10, 1], [5, 12, 1]], [[22, 17, 1], [34, 12, 1], [34, 4, 1]]],
+  },
+  {
+    name: 'みなと銀行 本店', no: 'その二', par: 480,
+    map: [
+      '################################################',
+      '#....................#.............#.o.......o.#',
+      '#.hhhh.hhhh.hhhh.hhh.#.............#...........#',
+      '#....................#..h.....h....#...........#',
+      '#.hhhh.hhhh.hhhh.hhh.#.............#...........#',
+      '#....................#.............L.........V.#',
+      '#.hhhh.hhhh.hhhh.hhh.#.............#...........#',
+      '#....................L..h.....h....#...........#',
+      '#.hhhh.hhhh.hhhh..K..#.............#...........#',
+      '#....................#.............#.o.......o.#',
+      '########D###################D###################',
+      '#...............o...............o..............#',
+      '#..............................................#',
+      '#####D##########L######..#####L#########D#######',
+      '#K:::::::::#,,,,,,,,,#o..o#.......#...........K#',
+      '#::::::::::#,,,,,,,P,#....#.h.h.T.#............#',
+      '#::::o:::::#,,,,,,,,,#....#.h.h...#....o.......#',
+      '#::::::::::#,o,,,,,,,#....#.h.h.C.#............#',
+      '#:::::::::K#,o,,,,,,h#o..o#.......#...........K#',
+      '#####D#################..################D######',
+      '#..........#o......................o#..........#',
+      '#.......oo.#........................#.oo..oo.P.#',
+      '#.......oo.#........................#..........#',
+      '#..........#........................D.oo..oo...#',
+      '#..........D...oooooooo..oooooooo...#..........#',
+      '#..........#........................#.oo..oo...#',
+      '#K.........#.h......h......h......h.#..........#',
+      '#.EEEE.....#........................#K.........#',
+      '#.EEEE.....#o......................o#........K.#',
+      '################################################',
+    ],
+    spawn: [[2.5, 25.5], [3.5, 25.5], [4.5, 25.5]],
+    labels: [['書庫', 10.5, 1], ['前室', 28.5, 1], ['金庫', 41, 2], ['廊下', 24.5, 11], ['休憩室', 6, 14], ['支店長室', 16.5, 14],
+      ['サーバー室', 30.5, 14], ['詰所', 40.5, 14], ['通用口', 6, 20], ['ロビー', 24, 20], ['事務室', 42, 20]],
+    guards: [
+      { k: 'talk', x: 3, y: 16, face: 0, talk: 0 }, { k: 'talk', x: 7, y: 16, face: 180, talk: 0 },
+      { k: 'talk', x: 37, y: 16, face: 0, talk: 1 }, { k: 'talk', x: 41, y: 16, face: 180, talk: 1 },
+      { k: 'patrol', r: [[2, 11, 1.5], [45, 11, 1.5], [45, 12, 0], [2, 12, 0]] },
+      { k: 'patrol', r: [[13, 21, 1], [34, 21, 1], [34, 27, 1], [13, 27, 1]] },
+      { k: 'post', x: 27, y: 5, looks: [0, 315, 45, 180], every: 2.5 },
+      { k: 'patrol', r: [[2, 1, 1], [19, 1, 0], [19, 5, 1], [2, 5, 0], [2, 9, 1], [19, 9, 0]] },
+    ],
+    talks: [[5.5, 16.5, '休憩室'], [39.5, 16.5, '詰所']],
+    cams: [[28, 0, 90, 55, 7], [18, 10, 90, 60, 6], [47, 24, 180, 45, 6], [13, 19, 90, 45, 5]],
+    lasers: [{ x: 33, y: 1, len: 9, v: 1, blink: [1.6, 1.1] }, { x: 40, y: 1, len: 9, v: 1 }],
+    creaky: [[15, 12], [16, 12], [17, 12], [6, 3], [12, 5], [17, 7], [30, 12], [38, 5]],
+    reinf: [[[5, 25, 1], [24, 22, 1], [24, 12, 1]], [[30, 12, 1], [40, 21, 1], [44, 27, 1]]],
+  },
+  {
+    name: '鷹ノ巣邸', no: 'その三', par: 600,
+    map: [
+      '####################################################',
+      '#hhhh::::hhhh#,,,,,,,,,,#,V,#o,,,,,,,,o#.hhhh......#',
+      '#::::::::::::#,oo,,,,,,,#,,,#,,,,,,,,,,#.........T.#',
+      '#::P:::::::::#,oo,,,,,,,#,,,#o,,,,,,,,o#...........#',
+      '#::oo::::::::#,,,,,,,,,,##,##,,,,,,,,,,#.........C.#',
+      '#::::::::::::#,,,,,,,,,,,,,,D,,,,,,,,,,#...........#',
+      '#::::::::::::#h,,,,,,,,,,,,,#o,,,,,,,,o#.o.o.......#',
+      '#:::::::::oo:#h,,,,,,,,,,,,K#,,,,,,,,,,#...........#',
+      '#::::::::::::#,,,,,,,,,,,,,,#,,,,,,,,,,#K.........K#',
+      '#K:::::::::::#,,o,,,,,,o,,,,#o,,,,,,,,o#...........#',
+      '#::::::::::::#,,,,,,,,,,,,,,#,,,,,,,,,,#...........#',
+      '######L#############L############D###########L######',
+      '#::::::::::::#........................#::::::::::::#',
+      '#:hhh:hhh::P:#..h.....h......h.....h..#::::o:::::::#',
+      '#::::::::::::#........................#::::::::::::#',
+      '#:hhh:hhh:hh:#........................#:::oooooo:::#',
+      '#::::::::::::D.....oooo......oooo.....D:::oooooo:::#',
+      '#:hhh:hhh:hh:#.....oooo......oooo.....#:::oooooo:::#',
+      '#::::::::::::#........................#::::::::::::#',
+      '#:hhh:hhh::::#........................#::::::::::::#',
+      '#::::::::::K:#..h.....h......h.....h..#h::::::::::h#',
+      '#::::::::::::#........................#::::::::::::#',
+      '######D##################DD##################D######',
+      '#;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#.oooo..hh...#',
+      '#;;hhhhh;;;;;hhhhh;;;;;;;;;;hhhhh;;;;;#............#',
+      '#;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#............#',
+      '#;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#.oo....oo...#',
+      '#;;;;h;;;;;;;;;;;;oo;;;;;;;;;;;;;h;;;;#.oo....oo...#',
+      '#;;;;h;;;;;;;;;;;;oo;;;;;;;;;;;;;h;;;;D............#',
+      '#;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#............#',
+      '#;;hhhhh;;;;;hhhhh;;;;;;;;;;;;o;;;o;;;#K...........#',
+      '#EEE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#..........P.#',
+      '#EEE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;#............#',
+      '####################################################',
+    ],
+    spawn: [[2.5, 29.5], [3.5, 29.5], [4.5, 29.5]],
+    labels: [['書斎', 7, 1], ['主寝室', 19, 1], ['美術廊下', 34, 1], ['警備室', 47.5, 1], ['図書室', 7, 12], ['大広間', 26, 12],
+      ['食堂', 45, 12], ['庭', 20, 23], ['台所', 45, 24]],
+    guards: [
+      { k: 'talk', x: 41, y: 13, face: 0, talk: 0 }, { k: 'talk', x: 45, y: 13, face: 180, talk: 0 },
+      { k: 'talk', x: 31, y: 30, face: 0, talk: 1 }, { k: 'talk', x: 33, y: 30, face: 180, talk: 1 },
+      { k: 'post', x: 45, y: 4, looks: [270, 0, 180], every: 3 },
+      { k: 'post', x: 44, y: 27, looks: [0, 180, 90], every: 3.5 },
+      { k: 'patrol', r: [[15, 12, 1], [36, 12, 1], [36, 21, 1], [15, 21, 1]] },
+      { k: 'patrol', r: [[26, 13, 2], [26, 20, 2]] },
+      { k: 'patrol', r: [[12, 26, 1], [36, 26, 1], [36, 29, 1], [14, 29, 1]] },
+    ],
+    talks: [[43.5, 13.5, '食堂'], [32.5, 30.5, '庭']],
+    cams: [[39, 3, 180, 50, 6], [26, 11, 90, 60, 7], [12, 22, 90, 50, 6], [51, 26, 180, 45, 6]],
+    lasers: [{ x: 29, y: 8, len: 10, blink: [1.4, 1.0] }, { x: 30, y: 1, len: 10, v: 1, blink: [1.2, 1.2], ph: .6 }, { x: 26, y: 4, len: 1 }],
+    creaky: [[25, 21], [26, 21], [20, 10], [33, 5], [34, 5], [6, 12], [44, 10]],
+    reinf: [[[20, 25, 1], [26, 15, 1], [33, 6, 1]], [[40, 24, 1], [44, 18, 1], [45, 8, 1]]],
+  },
+];
+
+const PC_LINES = [
+  (n, d) => `業務メモ「金庫の番号、${n}桁目は ${d}」`,
+  (n, d) => `メールの下書き「例の番号の ${n} 番目は ${d} です」`,
+  (n, d) => `付箋の写真「${n}桁目 → ${d}」`,
+];
+const TALK_LINES = [
+  (n, d) => `「金庫の番号さ、${n}桁目が ${d} なんだって」`,
+  (n, d) => `「${n}番目は ${d}。主任がそう言ってた」`,
+  (n, d) => `「あの金庫、${n}桁目は ${d} だろ？」`,
+];
+
+// ---------- save ----------
+const KEY = 'mitsukage.v1';
+let save = { unlocked: 1, best: {}, si: 0, mute: false };
+try { const v = JSON.parse(localStorage.getItem(KEY)); if (v && typeof v === 'object') save = { ...save, ...v, best: { ...(v.best || {}) } }; } catch {}
+let noStore = false;
+function store() {
+  if (noStore) return;
+  try { localStorage.setItem(KEY, JSON.stringify(save)); showSaved(true); } catch { showSaved(false); }
+}
+function showSaved(ok) {
+  $('saved').textContent = ok
+    ? `記録: ステージ ${Math.min(save.unlocked, STAGES.length)} まで開いている。ステージを成功するたびに、このブラウザに自動で保存します。`
+    : 'このブラウザでは記録を残せません（プライベートウィンドウなど）。';
+}
+showSaved(true);
+
+// ---------- world ----------
+const tileAt = (W, x, y) => (x < 0 || y < 0 || x >= W.w || y >= W.h) ? '#' : W.T[y * W.w + x];
+function opaqueAt(W, x, y) {
+  if (x < 0 || y < 0 || x >= W.w || y >= W.h) return true;
+  const i = y * W.w + x, c = W.T[i];
+  if (c === '#' || c === 'h' || c === 'K') return true;
+  if (c === 'D' || c === 'L') return !W.doorAt.get(i).open;
+  return false;
+}
+function pSolid(W, x, y) {
+  if (x < 0 || y < 0 || x >= W.w || y >= W.h) return true;
+  const i = y * W.w + x, c = W.T[i];
+  if (FLOORS.includes(c) || c === 'D') return false;
+  if (c === 'L') return !W.doorAt.get(i).unl;
+  return true;
+}
+const gSolidI = (W, i) => { const c = W.T[i]; return !(FLOORS.includes(c) || c === 'D' || c === 'L'); };
+
+function los(W, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, n = Math.ceil(Math.hypot(dx, dy) / 0.2);
+  const sx = Math.floor(ax), sy = Math.floor(ay), ex = Math.floor(bx), ey = Math.floor(by);
+  for (let k = 1; k < n; k++) {
+    const tx = Math.floor(ax + dx * k / n), ty = Math.floor(ay + dy * k / n);
+    if ((tx === ex && ty === ey) || (tx === sx && ty === sy)) continue;
+    if (opaqueAt(W, tx, ty)) return false;
+  }
+  return true;
+}
+// Distance a ray travels before it meets something opaque. `into` lets it go a little way into the wall so wall faces get lit.
+function castRay(W, x, y, a, maxR, into) {
+  const c = Math.cos(a), s = Math.sin(a), sx = Math.floor(x), sy = Math.floor(y);
+  for (let r = 0.1; r < maxR; r += 0.12) {
+    const tx = Math.floor(x + c * r), ty = Math.floor(y + s * r);
+    if ((tx !== sx || ty !== sy) && opaqueAt(W, tx, ty)) return into ? Math.min(maxR, r + 0.4) : r;
+  }
+  return maxR;
+}
+// Breadth-first path for guards over the tile grid (8 directions, no cutting corners). Returns tile centres after the start.
+function findPath(W, sx, sy, tx, ty) {
+  const w = W.w, h = W.h, s = Math.floor(sy) * w + Math.floor(sx);
+  let t = Math.floor(ty) * w + Math.floor(tx);
+  if (t < 0 || t >= w * h) return [];
+  if (gSolidI(W, t)) {
+    let best = -1, bd = 1e9;
+    for (const [dx, dy] of DIR8) {
+      const nx = (t % w) + dx, ny = Math.floor(t / w) + dy, n = ny * w + nx;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h || gSolidI(W, n)) continue;
+      const d = Math.hypot(nx + .5 - tx, ny + .5 - ty);
+      if (d < bd) { bd = d; best = n; }
+    }
+    if (best < 0) return [];
+    t = best;
+  }
+  if (s === t) return [{ x: (t % w) + .5, y: Math.floor(t / w) + .5 }];
+  const prev = W.bfs || (W.bfs = new Int32Array(w * h));
+  prev.fill(-1); prev[s] = s;
+  const q = [s];
+  for (let qi = 0; qi < q.length; qi++) {
+    const c = q[qi];
+    if (c === t) break;
+    const cx = c % w, cy = (c - cx) / w;
+    for (const [dx, dy] of DIR8) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const n = ny * w + nx;
+      if (prev[n] >= 0 || gSolidI(W, n)) continue;
+      if (dx && dy && (gSolidI(W, cy * w + nx) || gSolidI(W, ny * w + cx))) continue;
+      prev[n] = c; q.push(n);
+    }
+  }
+  if (prev[t] < 0) return [];
+  const path = [];
+  for (let c = t; c !== s; c = prev[c]) path.push({ x: (c % w) + .5, y: Math.floor(c / w) + .5 });
+  return path.reverse();
+}
+
+function roomOf(S, x, y) {
+  let best = '', bd = 1e9;
+  for (const [n, lx, ly] of S.labels) { const d = Math.hypot(lx - x, ly + 1 - y); if (d < bd) { bd = d; best = n; } }
+  return best;
+}
+function makeGuard(W, d, rng) {
+  const g = { id: W.nextId++, k: d.k, x: 0, y: 0, dir: 0, st: d.k, meter: 0, path: [], pathT: 0, wait: 0, t: 0, lookT: 0, lookBase: 0,
+    chase: -1, lost: 0, seen: null, knowHide: false, moving: false, bubble: '' };
+  if (d.k === 'patrol') {
+    g.route = d.r.map(p => ({ x: p[0] + .5, y: p[1] + .5, w: p[2] || 0 }));
+    if (rng() < .5) g.route.reverse();
+    g.ri = Math.floor(rng() * g.route.length);
+    g.x = g.route[g.ri].x; g.y = g.route[g.ri].y;
+    g.home = { x: g.x, y: g.y, dir: 0 };
+  } else {
+    g.x = d.x + .5; g.y = d.y + .5;
+    if (d.k === 'post') { g.looks = d.looks.map(a => a * DEG); g.lookI = Math.floor(rng() * g.looks.length); g.every = d.every; g.lookT = Math.floor(rng() * d.every * 60); g.dir = g.looks[g.lookI]; }
+    else { g.dir = d.face * DEG; W.talks[d.talk].guards.push(g); }
+    g.home = { x: g.x, y: g.y, dir: g.dir };
+  }
+  return g;
+}
+function buildStage(si, seed) {
+  const S = STAGES[si], rng = mulberry32(seed);
+  const h = S.map.length, w = S.map[0].length;
+  const W = { si, S, seed, w, h, T: S.map.join(''), doors: [], doorAt: new Map(), pcs: [], pcAt: new Map(), lockers: [], lockerAt: new Map(),
+    term: null, panel: null, safe: null, exits: new Set(), creaky: new Set(), lasers: [], cams: [], guards: [], gById: new Map(), ps: [], talks: [],
+    hints: [], code: [], nb: [[], [], []], found: 0, alarm: 0, level: 0, time: 0, phase: 'play', phaseT: 0, why: '', loot: null, stones: [],
+    fx: [], fxNew: [], snd: [], banner: null, bnId: 0, hacked: false, nextId: 1, reinfN: 0, bg: null, miniBg: null };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, c = W.T[i];
+    if (c === 'D' || c === 'L') {
+      const up = tileAt(W, x, y - 1), dn = tileAt(W, x, y + 1);
+      const d = { x, y, i, locked: c === 'L', unl: false, open: false, horiz: up !== '#' || dn !== '#' };
+      W.doors.push(d); W.doorAt.set(i, d);
+    } else if (c === 'P') { const p = { x, y, read: false, hint: null }; W.pcs.push(p); W.pcAt.set(i, p); }
+    else if (c === 'K') { const l = { x, y, occ: -1 }; W.lockers.push(l); W.lockerAt.set(i, l); }
+    else if (c === 'T') W.term = { x, y, done: false };
+    else if (c === 'C') W.panel = { x, y, done: false };
+    else if (c === 'V') W.safe = { x, y, open: false, lockT: 0 };
+    else if (c === 'E') W.exits.add(i);
+  }
+  for (const [x, y] of S.creaky) W.creaky.add(y * w + x);
+  for (const L of S.lasers) {
+    const cells = [];
+    for (let k = 0; k < L.len; k++) cells.push(L.v ? (L.y + k) * w + L.x : L.y * w + L.x + k);
+    const b = L.blink ? { onF: Math.round(L.blink[0] * 60), per: Math.round((L.blink[0] + L.blink[1]) * 60) } : null;
+    W.lasers.push({ x: L.x, y: L.y, len: L.len, v: !!L.v, set: new Set(cells), blink: b, ph: Math.round((L.ph || 0) * 60), on: true, off: false, cool: 0, flash: 0 });
+  }
+  for (const [x, y, a, sw, per] of S.cams) W.cams.push({ x, y, base: a * DEG, sw: sw * DEG, per, ph: rng() * Math.PI * 2, ang: a * DEG, jam: 0, cool: 0, meter: 0 });
+  for (const [x, y, room] of S.talks) W.talks.push({ x, y, room, prog: 0, hint: null, guards: [] });
+  for (const d of S.guards) { const g = makeGuard(W, d, rng); W.guards.push(g); W.gById.set(g.id, g); }
+  W.ps = S.spawn.map((s, r) => ({ role: r, x: s[0], y: s[1], dir: -Math.PI / 2, st: 'ok', t: 0, work: null, wp: 0, sneak: false, moving: false,
+    cd: 0, stepT: 0, lastTile: -1, cur: NONE, prev: NONE, msg: null, dial: null, grace: 0, hideFrom: null, locker: null, listen: -1, shown: true }));
+  // the code: one digit per clue, positions shuffled so the clues come in any order
+  const srcs = [...W.pcs.map(p => ({ kind: 'pc', obj: p, room: roomOf(S, p.x + .5, p.y + .5) })), ...W.talks.map(t => ({ kind: 'talk', obj: t, room: t.room }))];
+  const pos = srcs.map((_, i) => i);
+  for (let i = pos.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pos[i], pos[j]] = [pos[j], pos[i]]; }
+  W.code = srcs.map(() => 0);
+  srcs.forEach((s, i) => {
+    const d = Math.floor(rng() * 10), at = pos[i];
+    W.code[at] = d;
+    const lines = s.kind === 'pc' ? PC_LINES : TALK_LINES;
+    const line = lines[Math.floor(rng() * lines.length)](at + 1, d);
+    const hint = { kind: s.kind, room: s.room, at, d, line, text: `${s.room}の${s.kind === 'pc' ? 'パソコン' : '見張りの話'}：${line}`, found: false };
+    s.obj.hint = hint; W.hints.push(hint);
+  });
+  return W;
+}
+
+// ---------- effects & messages (host side) ----------
+let W_SOUND = true;   // false while self-tests run
+function sfx(W, k) { if (W !== G) return; W.snd.push(k); play(k); }
+function addFx(W, f) { W.fxNew.push(f); addFxLocal(W, f); }
+function addFxLocal(W, f) { if (f[0] === 'r') W.fx.push({ k: 'r', x: f[1], y: f[2], r: f[3], t: 0, life: 40 }); }
+function banner(W, text, sub) { W.banner = { id: ++W.bnId, text, sub: sub || '', t: 200 }; }
+function say(p, text) { p.msg = { id: (p.msg ? p.msg.id : 0) + 1, text, t: 150 }; }
+function stepFx(W) {
+  if (!W) return;
+  W.fx = W.fx.filter(f => ++f.t < f.life);
+  if (W.banner && W.banner.t > 0) W.banner.t--;
+  for (const p of W.ps) if (p.msg && p.msg.t > 0) p.msg.t--;
+  for (const L of W.lasers) if (L.flash > 0) L.flash--;
+}
+function addAlarm(W, n, why) {
+  if (W.phase !== 'play') return;
+  const before = W.level;
+  W.alarm = Math.min(100, W.alarm + n);
+  W.level = W.alarm >= 75 ? 3 : W.alarm >= 50 ? 2 : W.alarm >= 25 ? 1 : 0;
+  banner(W, why, `警報 +${n}`);
+  if (W.alarm >= 100) { endGame(W, 'fail', '全館に警報が鳴りひびいた'); return; }
+  if (W.level > before) {
+    sfx(W, 'siren');
+    banner(W, `警戒レベル ${W.level}（${LEVEL_NAME[W.level]}）`, `${why}　${LEVEL_NOTE[W.level]}`);
+    if (W.level >= 2) spawnReinf(W);
+  }
+}
+function spawnReinf(W) {
+  const r = W.S.reinf[W.reinfN++ % W.S.reinf.length];
+  const g = makeGuard(W, { k: 'patrol', r }, Math.random);
+  g.ri = 0; g.x = g.route[0].x; g.y = g.route[0].y;
+  W.guards.push(g); W.gById.set(g.id, g);
+}
+function endGame(W, kind, why) {
+  if (W.phase !== 'play') return;
+  W.phase = kind; W.phaseT = 0; W.why = why || '';
+  sfx(W, kind === 'clear' ? 'clear' : 'fail');
+  banner(W, kind === 'clear' ? '脱出成功！' : '失敗…', why);
+}
+function noise(W, x, y, r, ring) {
+  if (ring) addFx(W, ['r', r2(x), r2(y), r]);
+  for (const g of W.guards) {
+    if (g.st === 'chase' || g.st === 'notice') continue;
+    const d = Math.hypot(g.x - x, g.y - y);
+    if (d <= r && (d <= r * .55 || los(W, g.x, g.y, x, y))) investigate(W, g, x, y);
+  }
+}
+function learnHint(W, h, role) {
+  if (!h || h.found) return;
+  h.found = true; W.found++;
+  W.nb[role].push(h.text);
+  sfx(W, 'note');
+  banner(W, `${ROLES[role].name}が番号のヒントを見つけた（${W.found}/${W.hints.length}）`, '中身は見つけた人の手帳にだけ書かれる');
+}
+
+// ---------- guards ----------
+const guardRange = (W, g) => (5.5 + 0.7 * W.level + (g.st === 'chase' ? 1.5 : 0)) * (g.st === 'talk' ? 0.6 : 1);
+function canSee(W, g, p) {
+  if (W.noDetect || p.st === 'caught' || p.st === 'hidden' || p.grace > 0) return false;
+  const dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy);
+  if (d < 0.9) return true;
+  if (d > guardRange(W, g)) return false;
+  if (Math.abs(angDiff(Math.atan2(dy, dx), g.dir)) > (g.st === 'chase' ? FOV * .65 : FOV / 2)) return false;
+  return los(W, g.x, g.y, p.x, p.y);
+}
+function turnTo(g, a, rate) { const d = angDiff(a, g.dir), m = rate / 60; g.dir += Math.abs(d) <= m ? d : Math.sign(d) * m; }
+function lookAround(g) { g.t++; turnTo(g, g.lookBase + Math.sin(g.t / 38) * 1.3, 3); }
+function followPath(W, g, speed) {
+  const n = g.path[0];
+  if (!n) return true;
+  const dx = n.x - g.x, dy = n.y - g.y, d = Math.hypot(dx, dy), s = speed / 60;
+  if (d > 0.01) turnTo(g, Math.atan2(dy, dx), 9);
+  if (d <= s) { g.x = n.x; g.y = n.y; g.path.shift(); } else { g.x += dx / d * s; g.y += dy / d * s; }
+  g.moving = true;
+  return !g.path.length;
+}
+function investigate(W, g, x, y) {
+  if (g.st === 'chase') return;
+  g.st = 'investigate'; g.tgt = { x, y };
+  g.path = findPath(W, g.x, g.y, x, y);
+}
+function goBack(W, g) {
+  if (g.k === 'patrol') { g.st = 'patrol'; g.path = []; }
+  else { g.st = 'return'; g.path = findPath(W, g.x, g.y, g.home.x, g.home.y); }
+}
+function dispatch(W, x, y, n) {
+  W.guards.filter(g => g.st !== 'chase').sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y))
+    .slice(0, n).forEach(g => investigate(W, g, x, y));
+}
+function spot(W, g, p) {
+  g.st = 'chase'; g.chase = p.role; g.lost = 0; g.meter = 1; g.path = []; g.pathT = 0; g.knowHide = false;
+  sfx(W, 'alert');
+  for (const o of W.guards) if (o !== g && o.st !== 'chase' && dist(o, p) < 8) investigate(W, o, p.x, p.y);
+  addAlarm(W, p.role === 0 ? 8 : 20, `${ROLES[p.role].name}が見つかった！`);
+}
+function catchP(W, g, p) {
+  if (p.st === 'hidden') { if (p.locker) p.locker.occ = -1; p.locker = null; p.x = p.hideFrom.x; p.y = p.hideFrom.y; }
+  p.st = 'caught'; p.t = 150; p.work = null;
+  if (W.loot && W.loot.holder === p.role) { W.loot.holder = -1; W.loot.x = p.x; W.loot.y = p.y; }
+  for (const o of W.guards) if (o === g || (o.st === 'chase' && o.chase === p.role)) { o.st = 'look'; o.lookT = 100; o.lookBase = o.dir; o.t = 0; o.meter = 0; }
+  say(p, '捕まった！入口にもどされる');
+  sfx(W, 'caught');
+  addAlarm(W, 10, `${ROLES[p.role].name}が捕まった！`);
+}
+function chaseStep(W, g, sp) {
+  const p = W.ps[g.chase];
+  if (p.st === 'caught') { g.st = 'look'; g.lookT = 90; g.lookBase = g.dir; return; }
+  const known = p.st === 'hidden' && g.knowHide;
+  const vis = canSee(W, g, p);
+  if (vis) { g.seen = { x: p.x, y: p.y }; g.lost = 0; } else g.lost++;
+  if ((vis || known) && dist(g, p) < (known ? 1.25 : 0.55)) { catchP(W, g, p); return; }
+  if (--g.pathT <= 0 || !g.path.length) { const t = vis || known ? p : g.seen; g.path = findPath(W, g.x, g.y, t.x, t.y); g.pathT = 10; }
+  const arrived = followPath(W, g, 4.2 * sp);
+  if (!vis && !known && (g.lost > 150 || (arrived && dist(g, g.seen) < 0.8))) { g.st = 'look'; g.lookT = 220; g.lookBase = g.dir; g.t = 0; g.meter = 0.5; }
+}
+function updateGuard(W, g) {
+  const sp = 1 + 0.1 * W.level;
+  g.moving = false;
+  if (g.st === 'chase') { chaseStep(W, g, sp); return; }
+  let best = null, bd = 1e9;
+  for (const p of W.ps) if (canSee(W, g, p)) { const d = dist(g, p); if (d < bd) { bd = d; best = p; } }
+  if (best) {
+    g.meter += 1 / 60 / (0.3 + 0.16 * bd) * (g.st === 'talk' ? 0.6 : 1) * (1 + 0.15 * W.level);
+    g.seen = { x: best.x, y: best.y };
+    if (g.st !== 'notice') { g.st = 'notice'; g.path = []; }
+    turnTo(g, Math.atan2(best.y - g.y, best.x - g.x), 4);
+    if (g.meter >= 1) spot(W, g, best);
+    return;
+  }
+  g.meter = Math.max(0, g.meter - 0.35 / 60);
+  if (g.st === 'notice') { investigate(W, g, g.seen.x, g.seen.y); return; }
+  switch (g.st) {
+    case 'patrol': {
+      if (g.wait > 0) { g.wait--; lookAround(g); break; }
+      const pt = g.route[g.ri];
+      if (Math.hypot(g.x - pt.x, g.y - pt.y) < 0.05) {
+        g.ri = (g.ri + 1) % g.route.length; g.path = [];
+        if (pt.w) { g.wait = Math.round(pt.w * 60); g.lookBase = g.dir; g.t = 0; }
+        break;
+      }
+      if (!g.path.length) { g.path = findPath(W, g.x, g.y, pt.x, pt.y); if (!g.path.length) { g.x = pt.x; g.y = pt.y; } }
+      followPath(W, g, 2.0 * sp);
+      break;
+    }
+    case 'post':
+      if (--g.lookT <= 0) { g.lookI = (g.lookI + 1) % g.looks.length; g.lookT = Math.round(g.every * 60); }
+      turnTo(g, g.looks[g.lookI], 2.2);
+      break;
+    case 'talk':
+      g.t++;
+      turnTo(g, g.home.dir + ((g.t % 420) < 70 ? 0.6 : 0), 2);
+      break;
+    case 'investigate':
+      if (followPath(W, g, 2.8 * sp)) { g.st = 'look'; g.t = 0; g.lookBase = g.dir; g.lookT = 170; }
+      break;
+    case 'look':
+      lookAround(g);
+      if (--g.lookT <= 0) goBack(W, g);
+      break;
+    case 'return':
+      if (followPath(W, g, 2.3 * sp)) { g.st = g.k; g.t = 0; }
+      break;
+  }
+}
+function bubbleOf(g) {
+  if (g.st === 'chase') return '!';
+  if (g.st === 'notice' || g.st === 'investigate' || g.st === 'look') return '?';
+  if (g.st === 'talk') return '…';
+  return '';
+}
+
+// ---------- cameras & lasers ----------
+const camOrigin = c => ({ x: c.x + .5 + Math.cos(c.base) * .6, y: c.y + .5 + Math.sin(c.base) * .6 });
+function updateCam(W, c) {
+  c.ang = c.base + c.sw * Math.sin(W.time / 60 / c.per * Math.PI * 2 + c.ph);
+  if (c.jam > 0) { c.jam--; c.meter = 0; return; }
+  if (c.cool > 0) { c.cool--; return; }
+  const o = camOrigin(c);
+  let hit = null;
+  for (const p of W.ps) {
+    if (W.noDetect || p.grace > 0 || p.st === 'caught' || p.st === 'hidden') continue;
+    const dx = p.x - o.x, dy = p.y - o.y, d = Math.hypot(dx, dy);
+    if (d > CAM_R || Math.abs(angDiff(Math.atan2(dy, dx), c.ang)) > CAM_FOV / 2) continue;
+    if (los(W, o.x, o.y, p.x, p.y)) { hit = p; break; }
+  }
+  if (hit) {
+    c.meter += 1 / 45;
+    if (c.meter >= 1) { c.meter = 0; c.cool = 240; sfx(W, 'alert'); dispatch(W, hit.x, hit.y, 2); addAlarm(W, 15, `カメラに${ROLES[hit.role].name}が映った！`); }
+  } else c.meter = Math.max(0, c.meter - 1 / 90);
+}
+const laserOn = (W, L) => !L.off && (!L.blink || ((W.time + L.ph) % L.blink.per) < L.blink.onF);
+function updateLasers(W) {
+  for (const L of W.lasers) {
+    L.on = laserOn(W, L);
+    if (L.cool > 0) L.cool--;
+    if (!L.on || L.cool > 0 || W.noDetect) continue;
+    for (const p of W.ps) {
+      if (p.st === 'caught' || p.st === 'hidden' || p.grace > 0) continue;
+      if (L.set.has(Math.floor(p.y) * W.w + Math.floor(p.x))) {
+        L.cool = 120; L.flash = 45; sfx(W, 'buzz'); dispatch(W, p.x, p.y, 2);
+        addAlarm(W, 12, `${ROLES[p.role].name}が赤外線にふれた！`);
+        break;
+      }
+    }
+  }
+}
+
+// ---------- thieves ----------
+const PR = 0.3;
+function blockedP(W, x, y) {
+  return pSolid(W, Math.floor(x - PR), Math.floor(y - PR)) || pSolid(W, Math.floor(x + PR), Math.floor(y - PR))
+    || pSolid(W, Math.floor(x - PR), Math.floor(y + PR)) || pSolid(W, Math.floor(x + PR), Math.floor(y + PR));
+}
+function moveP(W, p, dx, dy) { if (!blockedP(W, p.x + dx, p.y)) p.x += dx; if (!blockedP(W, p.x, p.y + dy)) p.y += dy; }
+// What the thief can use from where they stand: the closest thing in reach, preferring what they face.
+function nearInteract(W, p) {
+  if (W.loot && W.loot.holder < 0 && Math.hypot(W.loot.x - p.x, W.loot.y - p.y) < 1) return { kind: 'loot' };
+  const tx = Math.floor(p.x), ty = Math.floor(p.y), fx = Math.cos(p.dir), fy = Math.sin(p.dir);
+  let best = null, bs = 1e9;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const x = tx + dx, y = ty + dy, c = tileAt(W, x, y), i = y * W.w + x;
+    const ox = x + .5 - p.x, oy = y + .5 - p.y, d = Math.hypot(ox, oy);
+    if (d > 1.3) continue;
+    let o = null;
+    if (c === 'L' && !W.doorAt.get(i).unl) o = { kind: 'door', obj: W.doorAt.get(i) };
+    else if (c === 'V' && !W.safe.open) o = { kind: 'safe', obj: W.safe };
+    else if (c === 'P') o = { kind: 'pc', obj: W.pcAt.get(i) };
+    else if (c === 'T') o = { kind: 'term', obj: W.term };
+    else if (c === 'C') o = { kind: 'panel', obj: W.panel };
+    else if (c === 'K') o = { kind: 'locker', obj: W.lockerAt.get(i) };
+    if (!o) continue;
+    const score = d - (d > 0 ? 0.4 * (ox * fx + oy * fy) / d : 0);
+    if (score < bs) { bs = score; best = o; }
+  }
+  return best;
+}
+// { text, ok, hold (seconds of holding Z, 0 = a single press) }
+function describe(W, p, it) {
+  const r = p.role;
+  switch (it.kind) {
+    case 'loot': return { text: 'Z: お宝を持つ', ok: true, hold: 0 };
+    case 'door': return r === 1 ? { text: 'Z 長押し: 鍵を開ける', ok: true, hold: 2 } : { text: '鍵がかかっている（鍵開けなら開けられる）', ok: false };
+    case 'safe':
+      if (r !== 1) return { text: 'ダイヤル式の金庫（回せるのは鍵開けだけ）', ok: false };
+      if (W.safe.lockT > 0) return { text: 'ダイヤルが固まっている。少し待つ', ok: false };
+      return { text: 'Z: 金庫のダイヤルを回す', ok: true, hold: 0 };
+    case 'pc':
+      if (it.obj.read) return { text: 'もう読んだパソコン', ok: false };
+      return r === 2 ? { text: 'Z 長押し: パソコンを調べる', ok: true, hold: 2 } : { text: 'パスワードがかかっている（ハッカーなら読める）', ok: false };
+    case 'term':
+      if (W.hacked) return { text: '侵入ずみの警備端末', ok: false };
+      return r === 2 ? { text: 'Z 長押し: 警備端末に侵入する', ok: true, hold: 3 } : { text: '警備端末（ハッカーなら使える）', ok: false };
+    case 'panel':
+      if (W.panel.done) return { text: '赤外線の制御盤（切りずみ。点滅するものは切れない）', ok: false };
+      return r === 2 ? { text: 'Z 長押し: 赤外線を切る', ok: true, hold: 2.5 } : { text: '赤外線の制御盤（ハッカーなら使える）', ok: false };
+    case 'locker':
+      return it.obj.occ >= 0 && it.obj.occ !== r ? { text: 'ほかの人が入っている', ok: false } : { text: 'Z: ロッカーに隠れる', ok: true, hold: 0 };
+  }
+  return { text: '', ok: false };
+}
+function instant(W, p, it) {
+  if (it.kind === 'loot') { W.loot.holder = p.role; sfx(W, 'note'); say(p, 'お宝を持った。入口（緑の床）まで運ぶ'); return; }
+  if (it.kind === 'safe') { p.st = 'dial'; p.dial = p.dial || { d: W.code.map(() => 0), i: 0 }; sfx(W, 'dial'); return; }
+  if (it.kind === 'locker') {
+    const L = it.obj;
+    p.hideFrom = { x: p.x, y: p.y }; p.locker = L; L.occ = p.role;
+    p.x = L.x + .5; p.y = L.y + .5; p.st = 'hidden'; p.work = null;
+    for (const g of W.guards) if (g.st === 'chase' && g.chase === p.role && g.lost < 20) g.knowHide = true;
+    sfx(W, 'hide');
+  }
+}
+function unhide(W, p) {
+  if (p.locker) p.locker.occ = -1;
+  p.locker = null; p.x = p.hideFrom.x; p.y = p.hideFrom.y; p.st = 'ok'; sfx(W, 'hide');
+}
+function complete(W, p, k) {
+  if (k.kind === 'door') { k.obj.unl = true; sfx(W, 'unlock'); say(p, '鍵が開いた'); }
+  else if (k.kind === 'pc') { k.obj.read = true; learnHint(W, k.obj.hint, p.role); }
+  else if (k.kind === 'term') { W.hacked = true; sfx(W, 'note'); banner(W, 'ハッカーが警備端末に侵入した', 'ハッカーの見取り図に、見張りとカメラが映るようになった'); }
+  else if (k.kind === 'panel') { W.panel.done = true; for (const L of W.lasers) if (!L.blink) L.off = true; sfx(W, 'unlock'); banner(W, 'ハッカーが赤外線を切った', '点滅する赤外線は動いたまま'); }
+}
+function openSafe(W, p) {
+  W.safe.open = true; p.st = 'ok';
+  W.loot = { x: p.x, y: p.y, holder: p.role };
+  sfx(W, 'fanfare');
+  banner(W, '金庫が開いた！お宝を手に入れた', '入口（緑の床）まで運べば成功');
+}
+function dialStep(W, p, e) {
+  const D = p.dial, n = D.d.length;
+  if (e.skill) { p.st = 'ok'; return; }
+  if (e.left) { D.i = (D.i + n - 1) % n; sfx(W, 'dial'); }
+  if (e.right) { D.i = (D.i + 1) % n; sfx(W, 'dial'); }
+  if (e.up) { D.d[D.i] = (D.d[D.i] + 1) % 10; sfx(W, 'dial'); }
+  if (e.down) { D.d[D.i] = (D.d[D.i] + 9) % 10; sfx(W, 'dial'); }
+  if (e.act) {
+    if (D.d.join('') === W.code.join('')) openSafe(W, p);
+    else {
+      p.st = 'ok'; W.safe.lockT = 120; sfx(W, 'buzz');
+      noise(W, W.safe.x + .5, W.safe.y + .5, 5, true);
+      say(p, '番号が違う…');
+      addAlarm(W, 8, '金庫の番号が違った！ブザーが鳴った');
+    }
+  }
+}
+function skill(W, p) {
+  if (p.role === 1) { say(p, '鍵開けに X の特技はない。Z 長押しで鍵を開ける'); return; }
+  if (p.cd > 0) { say(p, `まだ使えない（あと ${Math.ceil(p.cd / 60)} 秒）`); return; }
+  if (p.role === 0) {
+    W.stones.push({ x: p.x, y: p.y, vx: Math.cos(p.dir) * .2, vy: Math.sin(p.dir) * .2, t: 0 });
+    p.cd = 150; sfx(W, 'throw');
+    return;
+  }
+  const near = W.cams.filter(c => Math.hypot(c.x + .5 - p.x, c.y + .5 - p.y) <= 7);
+  if (!near.length) { say(p, '近くにカメラがない（7 マス以内）'); return; }
+  near.forEach(c => { c.jam = 480; c.meter = 0; });
+  p.cd = 1200; sfx(W, 'jam'); say(p, `カメラを ${near.length} 台、8 秒止めた`);
+}
+function updateStones(W) {
+  W.stones = W.stones.filter(s => {
+    const nx = s.x + s.vx, ny = s.y + s.vy;
+    if (++s.t > 28 || opaqueAt(W, Math.floor(nx), Math.floor(ny))) {
+      noise(W, s.x, s.y, 6.5, true); sfx(W, 'clack');
+      return false;
+    }
+    s.x = nx; s.y = ny;
+    return true;
+  });
+}
+function workStep(W, p, c) {
+  const k = p.work;
+  if (!c.act || c.up || c.down || c.left || c.right) { p.work = null; return; }
+  k.t++;
+  if (k.kind === 'door' && k.t % 20 === 0) { noise(W, p.x, p.y, 2, false); sfx(W, 'pick'); }
+  else if (k.kind !== 'door' && k.t % 16 === 0) sfx(W, 'key');
+  if (k.t >= k.need) { p.work = null; complete(W, p, k); }
+}
+function updatePlayer(W, p) {
+  const c = p.cur, e = {};
+  for (const a of ACTS) e[a] = c[a] && !p.prev[a];
+  p.prev = c;
+  if (p.grace > 0) p.grace--;
+  if (p.cd > 0) p.cd--;
+  p.moving = false;
+  if (p.st === 'caught') {
+    if (--p.t <= 0) { const s = W.S.spawn[p.role]; p.x = s[0]; p.y = s[1]; p.st = 'ok'; p.grace = 120; say(p, '入口まで逃げ帰った'); }
+    return;
+  }
+  if (p.st === 'hidden') { if (e.act) unhide(W, p); return; }
+  if (p.st === 'dial') { dialStep(W, p, e); return; }
+  if (p.work) { workStep(W, p, c); return; }
+  let mx = (c.right ? 1 : 0) - (c.left ? 1 : 0), my = (c.down ? 1 : 0) - (c.up ? 1 : 0);
+  p.sneak = !!c.sneak;
+  if (mx || my) {
+    const l = Math.hypot(mx, my); mx /= l; my /= l;
+    p.dir = Math.atan2(my, mx);
+    const carry = W.loot && W.loot.holder === p.role;
+    const sp = ROLES[p.role].speed * (p.sneak ? .5 : 1) * (carry ? .82 : 1) / 60;
+    const ox = p.x, oy = p.y;
+    moveP(W, p, mx * sp, my * sp);
+    p.moving = p.x !== ox || p.y !== oy;
+    if (p.moving && !p.sneak && ++p.stepT >= 22) { p.stepT = 0; noise(W, p.x, p.y, p.role === 0 ? 2 : 2.6, false); }
+  }
+  const ti = Math.floor(p.y) * W.w + Math.floor(p.x);
+  if (ti !== p.lastTile) {
+    p.lastTile = ti;
+    if (W.creaky.has(ti)) { noise(W, p.x, p.y, p.sneak ? 3.5 : 6, true); sfx(W, 'creak'); say(p, '床がきしんだ！'); }
+  }
+  if (W.loot && W.loot.holder === p.role && W.exits.has(ti)) { endGame(W, 'clear', `${ROLES[p.role].name}がお宝を運び出した`); return; }
+  if (e.skill) skill(W, p);
+  if (c.act) {
+    const it = nearInteract(W, p);
+    if (it) {
+      const d = describe(W, p, it);
+      if (d.ok && d.hold) p.work = { kind: it.kind, obj: it.obj, t: 0, need: Math.round(d.hold * 60) };
+      else if (d.ok && e.act) instant(W, p, it);
+      else if (!d.ok && e.act) { say(p, d.text); sfx(W, 'deny'); }
+    } else if (e.act) say(p, 'ここには調べるものがない');
+  }
+}
+function updateTalks(W) {
+  const dec = W.ps[0];
+  dec.listen = -1;
+  W.talks.forEach((t, i) => {
+    if (t.hint.found) return;
+    const live = t.guards.every(g => g.st === 'talk' && Math.hypot(g.x - g.home.x, g.y - g.home.y) < 0.3);
+    if (!live || dec.st === 'caught' || Math.hypot(dec.x - t.x, dec.y - t.y) > TALK_R) return;
+    dec.listen = i;
+    if (++t.prog >= TALK_NEED) learnHint(W, t.hint, 0);
+  });
+}
+function updateDoors(W) {
+  for (const d of W.doors) {
+    const cx = d.x + .5, cy = d.y + .5;
+    let o = W.guards.some(g => Math.abs(g.x - cx) < 1.2 && Math.abs(g.y - cy) < 1.2);
+    if (!o && (!d.locked || d.unl)) o = W.ps.some(p => p.st !== 'caught' && p.st !== 'hidden' && Math.abs(p.x - cx) < 1.1 && Math.abs(p.y - cy) < 1.1);
+    d.open = o;
+  }
+}
+function updateGame() {
+  const W = G;
+  if (W.phase !== 'play') { if (++W.phaseT === 110) finish(W); return; }
+  W.time++;
+  if (W.time >= LIMIT) { endGame(W, 'fail', '夜が明けてしまった'); return; }
+  if (!W.scripted) {
+    for (let ci = 0; ci < 3; ci++) {
+      const c = CL[ci];
+      if (!c) continue;
+      const inp = resolveInp(c.inp);
+      for (let r = 0; r < 3; r++) if (OWN[r] === ci) W.ps[r].cur = r === c.active ? inp : NONE;
+    }
+  }
+  updateDoors(W);
+  updateLasers(W);
+  if (W.safe.lockT > 0) W.safe.lockT--;
+  for (const p of W.ps) { updatePlayer(W, p); if (W.phase !== 'play') return; }
+  if (W.loot && W.loot.holder >= 0) { const h = W.ps[W.loot.holder]; W.loot.x = h.x; W.loot.y = h.y; }
+  updateStones(W);
+  for (const g of W.guards) { updateGuard(W, g); g.bubble = bubbleOf(g); if (W.phase !== 'play') return; }
+  for (const c of W.cams) updateCam(W, c);
+  updateTalks(W);
+}
+function rankOf(W) {
+  const s = W.time / 60, a = W.alarm, par = W.S.par;
+  if (a < 10 && s <= par) return 'S';
+  if (a < 30 && s <= par * 1.5) return 'A';
+  if (a < 60) return 'B';
+  return 'C';
+}
+function finish(W) {
+  const res = { kind: W.phase, why: W.why, si: W.si, time: W.time, alarm: W.alarm, found: W.found, total: W.hints.length, rank: W.phase === 'clear' ? rankOf(W) : '' };
+  if (W.scripted) { W.result = res; return; }
+  if (res.kind === 'clear') recordClear(res);
+  if (NET.role === 'host') netSendAll({ t: 'end', res });
+  showResult(res);
+}
+const RANKS = 'SABC';
+function recordClear(res) {
+  const b = save.best[res.si];
+  if (!b || RANKS.indexOf(res.rank) < RANKS.indexOf(b.rank) || (res.rank === b.rank && res.time < b.time)) save.best[res.si] = { rank: res.rank, time: res.time };
+  save.unlocked = Math.max(save.unlocked, Math.min(STAGES.length, res.si + 2));
+  store();
+  drawStageList();
+}
+
+// ---------- input ----------
+const keys = {}, touch = {};
+let touchSneak = false;
+function newInp() { return { held: {}, cnt: ACTS.map(() => 0), used: ACTS.map(() => 0), prev: {} }; }
+// Buttons held plus press counters. A press that came and went between two frames still counts once.
+function resolveInp(n) {
+  const o = {};
+  ACTS.forEach((a, i) => {
+    const want = n.cnt[i] > n.used[i];
+    if (want && !n.prev[a]) { o[a] = true; n.used[i]++; }
+    else if (want) o[a] = false;
+    else o[a] = !!n.held[a];
+  });
+  n.prev = o;
+  return o;
+}
+const CL = [{ inp: newInp(), active: 0 }, null, null];
+const LOC = CL[0].inp;
+function readHeld() { const h = {}; for (const a of ACTS) h[a] = !!(keys[a] || touch[a]); if (touchSneak) h.sneak = true; return h; }
+const KMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  KeyZ: 'act', KeyJ: 'act', Space: 'act', KeyX: 'skill', KeyK: 'skill', ShiftLeft: 'sneak', ShiftRight: 'sneak' };
+function press(a) { LOC.cnt[ACTS.indexOf(a)]++; }
+
+// ---------- ownership ----------
+let OWN = [0, 0, 0];   // which browser runs each role: 0 = the host (or this browser alone), 1-2 = guests
+const myIdx = () => NET.role === 'guest' ? NET.slot : 0;
+const ownRoles = () => [0, 1, 2].filter(r => OWN[r] === myIdx());
+function activeRole() { return NET.role === 'guest' ? (GV ? GV.active : 0) : CL[0].active; }
+function setActive(a) { if (NET.role === 'guest') { if (GV) GV.active = a; } else CL[0].active = a; }
+function fixActive() {
+  for (let ci = 0; ci < 3; ci++) { const c = CL[ci]; if (c && OWN[c.active] !== ci) { const r = OWN.indexOf(ci); if (r >= 0) c.active = r; } }
+  if (NET.role === 'guest' && GV && OWN[GV.active] !== NET.slot) { const r = OWN.indexOf(NET.slot); if (r >= 0) GV.active = r; }
+}
+function swapRole(to) {
+  const own = ownRoles(), a = activeRole();
+  if (to == null) { if (own.length < 2) return; setActive(own[(own.indexOf(a) + 1) % own.length]); }
+  else if (own.includes(to) && to !== a) setActive(to);
+  else return;
+  play('tick');
+}
+// Lobby: take a role. If its holder has only that one, they get one of yours in exchange, so nobody is left with none.
+function claim(ci, r) {
+  const cur = OWN[r];
+  if (cur === ci) return;
+  if (OWN.filter(o => o === cur).length >= 2) OWN[r] = ci;
+  else {
+    const mine = [0, 1, 2].filter(q => OWN[q] === ci);
+    OWN[mine.length ? mine[mine.length - 1] : r] = cur;
+    OWN[r] = ci;
+  }
+  if (CL[ci]) CL[ci].active = r;
+  fixActive();
+}
+
+// ---------- sound ----------
+let AC = null, muted = !!save.mute;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; } }
+  if (AC.state === 'suspended') AC.resume();
+}
+function tone(f, d, type = 'square', vol = .05, slide = 0, delay = 0) {
+  if (!AC || muted || !W_SOUND) return;
+  const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.linearRampToValueAtTime(Math.max(30, f + slide), t + d);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + .02);
+}
+const SND = {
+  alert() { tone(880, .07, 'square', .05); tone(1320, .14, 'square', .05, 0, .07); },
+  siren() { tone(620, .35, 'sawtooth', .04, 300); tone(920, .35, 'sawtooth', .04, -300, .35); },
+  unlock() { tone(1200, .04, 'square', .04); tone(1700, .06, 'square', .04, 0, .06); },
+  pick() { tone(2400, .02, 'square', .02); },
+  key() { tone(1800 + Math.random() * 400, .02, 'square', .015); },
+  note() { tone(660, .08, 'triangle', .06); tone(990, .14, 'triangle', .06, 0, .09); },
+  buzz() { tone(110, .3, 'sawtooth', .06); },
+  caught() { tone(320, .25, 'square', .06, -180); },
+  throw() { tone(500, .06, 'triangle', .03, 300); },
+  clack() { tone(170, .07, 'square', .07); tone(120, .05, 'square', .05, 0, .07); },
+  creak() { tone(130, .28, 'sawtooth', .04, 70); },
+  jam() { tone(300, .3, 'sawtooth', .03, -220); },
+  dial() { tone(1500, .02, 'square', .025); },
+  hide() { tone(240, .06, 'triangle', .05); },
+  deny() { tone(200, .08, 'square', .03); },
+  tick() { tone(900, .03, 'triangle', .03); },
+  join() { tone(523, .08, 'triangle', .05); tone(784, .1, 'triangle', .05, 0, .08); },
+  fanfare() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .16, 'square', .045, 0, i * .1)); },
+  clear() { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, .2, 'triangle', .06, 0, i * .12)); },
+  fail() { [392, 330, 262, 196].forEach((f, i) => tone(f, .25, 'square', .05, 0, i * .18)); },
+};
+function play(k) { if (SND[k]) SND[k](); }
+
+// ---------- static map picture ----------
+const BOOKS = ['#8a3b3b', '#3b5f8a', '#4f7a3b', '#8a7a3b', '#6b3b8a', '#3b8a7a'];
+function baseFloor(W, x, y) {
+  const n = {};
+  for (const [dx, dy] of DIR8.slice(0, 4)) { const c = tileAt(W, x + dx, y + dy); if (FLOORS.includes(c) && c !== 'E') n[c] = (n[c] || 0) + 1; }
+  let best = '.', bn = 0;
+  for (const c in n) if (n[c] > bn) { bn = n[c]; best = c; }
+  return best;
+}
+function drawStatic(W) {
+  const c = document.createElement('canvas'); c.width = W.w * TS; c.height = W.h * TS;
+  const g = c.getContext('2d'), rnd = mulberry32(W.si * 977 + 3);
+  for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) {
+    const ch = W.T[y * W.w + x], X = x * TS, Y = y * TS;
+    const R = (dx, dy, w, h, col) => { g.fillStyle = col; g.fillRect(X + dx, Y + dy, w, h); };
+    if (ch === '#') {
+      const below = tileAt(W, x, y + 1);
+      R(0, 0, 16, 16, '#1d2235');
+      if (below !== '#') {
+        R(0, 9, 16, 7, '#2b3150'); R(0, 9, 16, 1, '#3c4468'); R(0, 12, 16, 1, '#232945');
+        R((y % 2) ? 4 : 11, 9, 1, 3, '#232945'); R((y % 2) ? 10 : 3, 13, 1, 3, '#232945');
+      }
+      if (tileAt(W, x, y - 1) !== '#') R(0, 0, 16, 1, '#343b5c');
+      continue;
+    }
+    const f = FLOORS.includes(ch) ? ch : baseFloor(W, x, y);
+    if (f === 'E') { R(0, 0, 16, 16, '#22382f'); R(3, 5, 4, 2, '#3f8a62'); R(9, 5, 4, 2, '#3f8a62'); R(5, 9, 6, 2, '#3f8a62'); R(0, 0, 16, 1, '#2c4a3d'); }
+    else if (f === ',') { R(0, 0, 16, 16, '#4a2733'); R(7, 3, 2, 2, '#5a3341'); R(3, 11, 2, 2, '#5a3341'); R(11, 11, 2, 2, '#5a3341'); if (rnd() < .2) R(Math.floor(rnd() * 14), Math.floor(rnd() * 14), 2, 1, '#53303c'); }
+    else if (f === ':') { R(0, 0, 16, 16, '#4b392a'); R(0, 4, 16, 1, '#3f3023'); R(0, 9, 16, 1, '#3f3023'); R(0, 14, 16, 1, '#3f3023'); R(((x * 5 + y * 3) % 12) + 2, 0, 1, 4, '#3f3023'); R(((x * 7 + y) % 12) + 1, 5, 1, 4, '#3f3023'); }
+    else if (f === ';') { R(0, 0, 16, 16, '#25392b'); for (let k = 0; k < 3; k++) R(Math.floor(rnd() * 14), Math.floor(rnd() * 14), 1, 2, '#2f4a37'); }
+    else { R(0, 0, 16, 16, (x + y) % 2 ? '#373b4f' : '#33374a'); R(0, 0, 16, 1, '#2d3143'); R(0, 0, 1, 16, '#2d3143'); }
+    switch (ch) {
+      case 'o':
+        if (f === ',') { R(1, 4, 14, 11, '#20273a'); R(2, 2, 12, 9, 'rgba(150,190,215,.32)'); R(2, 2, 12, 1, 'rgba(210,235,255,.6)'); R(7, 6, 2, 2, ['#e86a92', '#7fd4ff', '#ffd166'][(x + y) % 3]); R(1, 13, 14, 2, '#151a28'); }
+        else if (f === ':') { R(1, 3, 14, 11, '#6b4e35'); R(1, 3, 14, 1, '#87643f'); R(2, 13, 2, 2, '#3b2a1c'); R(12, 13, 2, 2, '#3b2a1c'); }
+        else if (f === ';') { R(2, 2, 12, 12, '#6f7889'); R(4, 4, 8, 8, '#3f76a3'); R(5, 5, 3, 2, '#8cc3e8'); }
+        else { R(1, 3, 14, 10, '#59607a'); R(1, 3, 14, 1, '#737b98'); R(3, 5, 5, 3, '#c9c4b2'); R(1, 12, 14, 2, '#3b4055'); }
+        break;
+      case 'h':
+        if (f === ',') { R(2, 0, 12, 16, '#7e8399'); R(2, 0, 3, 16, '#9aa0b6'); R(11, 0, 3, 16, '#61667a'); R(1, 13, 14, 3, '#565b70'); }
+        else if (f === ';') { R(0, 1, 16, 15, '#1f5a35'); R(1, 2, 6, 5, '#2a7044'); R(8, 6, 6, 5, '#2a7044'); R(0, 13, 16, 3, '#174429'); }
+        else { R(0, 0, 16, 16, '#4a3424'); for (let i = 0; i < 3; i++) { R(1, 1 + i * 5, 14, 4, '#2a1d15'); for (let b = 0; b < 6; b++) R(2 + b * 2, 2 + i * 5, 2, 3, BOOKS[(x * 7 + y * 3 + i * 5 + b) % BOOKS.length]); } }
+        break;
+      case 'K': R(2, 0, 12, 15, '#55657a'); R(2, 0, 12, 1, '#7889a0'); R(4, 3, 8, 1, '#3c4758'); R(4, 5, 8, 1, '#3c4758'); R(4, 7, 8, 1, '#3c4758'); R(10, 9, 1, 3, '#c9d2e0'); R(2, 14, 12, 2, '#2f3846'); break;
+      case 'P': R(1, 5, 14, 9, '#59607a'); R(1, 5, 14, 1, '#737b98'); R(4, 1, 8, 7, '#161b29'); R(5, 2, 6, 4, '#7fdcff'); R(7, 8, 2, 2, '#161b29'); R(3, 11, 6, 2, '#2c3142'); break;
+      case 'T': R(0, 2, 16, 12, '#25304a'); R(1, 3, 4, 4, '#66e0a8'); R(6, 3, 4, 4, '#66e0a8'); R(11, 3, 4, 4, '#4fb7e0'); R(1, 9, 14, 3, '#1a2236'); break;
+      case 'C': R(2, 1, 12, 14, '#3b4158'); R(2, 1, 12, 1, '#535a78'); R(4, 3, 3, 3, '#ff5a6a'); R(9, 3, 3, 3, '#ff5a6a'); R(4, 8, 8, 2, '#20253a'); R(4, 11, 8, 2, '#20253a'); break;
+      case 'V': R(1, 1, 14, 14, '#8790a4'); R(1, 1, 14, 1, '#aab2c4'); R(3, 3, 10, 10, '#677085'); R(6, 6, 4, 4, '#c9ced8'); R(7, 7, 2, 2, '#3a4052'); R(1, 14, 14, 2, '#4a5164'); break;
+    }
+  }
+  W.bg = c;
+}
+function drawMiniBg(W) {
+  const s = 3, c = document.createElement('canvas'); c.width = W.w * s; c.height = W.h * s;
+  const g = c.getContext('2d');
+  for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) {
+    const ch = W.T[y * W.w + x];
+    g.fillStyle = ch === '#' ? '#2b3252' : ch === 'E' ? '#2f7a55' : FLOORS.includes(ch) || ch === 'D' || ch === 'L' ? '#11162a' : ch === 'P' ? '#7fdcff' : ch === 'T' ? '#66e0a8' : ch === 'C' ? '#ff5a6a' : ch === 'V' ? '#e8c65a' : '#262c44';
+    g.fillRect(x * s, y * s, s, s);
+  }
+  W.miniBg = c;
+}
+
+// ---------- drawing ----------
+let tick = 0;
+// Text goes on a second, transparent canvas drawn at the screen's real resolution, so letters stay sharp
+// while the pixel art underneath is scaled up. Coordinates are still in game pixels; whatever camera
+// offset the game canvas has at the moment is carried over.
+const hud = $('hudText'), hctx = hud.getContext('2d');
+function fitHud() {
+  const w = Math.max(VW, Math.round(cv.clientWidth * (window.devicePixelRatio || 1))), h = Math.round(w * VH / VW);
+  if (hud.width !== w || hud.height !== h) { hud.width = w; hud.height = h; }
+  const k = hud.width / VW;
+  hctx.setTransform(1, 0, 0, 1, 0, 0); hctx.clearRect(0, 0, hud.width, hud.height);
+  hctx.setTransform(k, 0, 0, k, 0, 0);
+}
+function txt(s, x, y, col, size = 10, align = 'center', alpha = 1) {
+  const t = ctx.getTransform();
+  x += t.e; y += t.f;
+  hctx.globalAlpha = alpha;
+  hctx.font = `${size}px "DotGothic16", "MS Gothic", monospace`; hctx.textAlign = align; hctx.textBaseline = 'top';
+  hctx.fillStyle = 'rgba(0,0,0,.85)'; hctx.fillText(s, x + .6, y + .6);
+  hctx.fillStyle = col; hctx.fillText(s, x, y);
+  hctx.globalAlpha = 1;
+}
+function textBox(lines, cx, y, maxW) {
+  hctx.font = '10px "DotGothic16", "MS Gothic", monospace';
+  const w = Math.min(maxW || 360, Math.max(...lines.map(l => hctx.measureText(l.t).width)) + 14);
+  const h = lines.length * 13 + 8;
+  hctx.fillStyle = 'rgba(8,10,20,.88)'; hctx.fillRect(Math.round(cx - w / 2), y, Math.round(w), h);
+  hctx.fillStyle = 'rgba(255,255,255,.12)'; hctx.fillRect(Math.round(cx - w / 2), y, Math.round(w), 1);
+  lines.forEach((l, i) => txt(l.t, cx, y + 4 + i * 13, l.c || '#e9e4d2', 10));
+}
+function cone(W, x, y, dir, fov, range, fill) {
+  ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(x * TS, y * TS);
+  const N = 22;
+  for (let k = 0; k <= N; k++) { const a = dir - fov / 2 + fov * k / N, r = castRay(W, x, y, a, range, false); ctx.lineTo((x + Math.cos(a) * r) * TS, (y + Math.sin(a) * r) * TS); }
+  ctx.closePath(); ctx.fill();
+}
+function drawThief(W, p) {
+  const X = Math.round(p.x * TS), Y = Math.round(p.y * TS) + 4, col = ROLES[p.role].color;
+  const f = face4(p.dir), cr = p.sneak ? 2 : 0, step = p.moving ? (tick >> 3) & 1 : 0;
+  const B = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + x, Y + y, w, h); };
+  B(-5, -1, 10, 2, 'rgba(0,0,0,.4)');
+  B(-3, -4, 2, 3 - step, '#11131c'); B(1, -4, 2, 2 + step, '#11131c');
+  B(-4, -10 + cr, 8, 6 - cr, '#1c1f2c'); B(-5, -9 + cr, 1, 4, '#1c1f2c'); B(4, -9 + cr, 1, 4, '#1c1f2c');
+  B(-4, -11 + cr, 8, 2, col);
+  if (f === 0) B(-6, -11 + cr + step, 2, 2, col); else if (f === 2) B(4, -11 + cr + step, 2, 2, col); else if (f === 3) B(-1, -9 + cr, 2, 3, col);
+  B(-3, -17 + cr, 7, 6, '#1c1f2c');
+  if (f !== 3) {
+    const ex = f === 0 ? 0 : f === 2 ? -3 : -2;
+    B(ex, -15 + cr, f === 1 ? 5 : 4, 2, '#e5bf98');
+    if (f === 1) { B(ex + 1, -15 + cr, 1, 1, '#14161f'); B(ex + 3, -15 + cr, 1, 1, '#14161f'); } else B(ex + (f === 0 ? 2 : 1), -15 + cr, 1, 1, '#14161f');
+  }
+  if (W.loot && W.loot.holder === p.role) { B(f === 0 ? -9 : 4, -10 + cr, 5, 6, '#b8893f'); B(f === 0 ? -9 : 4, -10 + cr, 5, 1, '#e6c27a'); }
+}
+function drawGuard(g) {
+  const X = Math.round(g.x * TS), Y = Math.round(g.y * TS) + 4, f = face4(g.dir), step = g.moving ? (tick >> 3) & 1 : 0;
+  const B = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + x, Y + y, w, h); };
+  B(-5, -1, 10, 2, 'rgba(0,0,0,.4)');
+  B(-3, -4, 2, 3 - step, '#1b2440'); B(1, -4, 2, 2 + step, '#1b2440');
+  B(-4, -11, 8, 7, '#2f4680'); B(-4, -5, 8, 1, '#1b2440'); B(-5, -10, 1, 4, '#2f4680'); B(4, -10, 1, 4, '#2f4680');
+  B(-3, -16, 7, 5, f === 3 ? '#3b2b22' : '#e5bf98');
+  if (f === 1) { B(-1, -14, 1, 1, '#14161f'); B(1, -14, 1, 1, '#14161f'); } else if (f === 0) B(2, -14, 1, 1, '#14161f'); else if (f === 2) B(-2, -14, 1, 1, '#14161f');
+  B(-4, -18, 9, 3, '#1b2550'); B(0, -18, 1, 1, '#e8c65a');
+  if (f === 1) B(-3, -15, 7, 1, '#121a38'); else if (f === 0) B(4, -16, 2, 1, '#121a38'); else if (f === 2) B(-6, -16, 2, 1, '#121a38');
+  ctx.fillStyle = '#fff3b0'; ctx.fillRect(X + Math.round(Math.cos(g.dir) * 6) - 1, Y - 8 + Math.round(Math.sin(g.dir) * 3), 2, 2);
+}
+function drawDoor(d) {
+  const X = d.x * TS, Y = d.y * TS, locked = d.locked && !d.unl;
+  const col = locked ? '#7d6130' : '#6c4a2d', edge = d.locked ? '#ffd23f' : '#8a6440';
+  const R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X + x, Y + y, w, h); };
+  if (d.open) { if (d.horiz) { R(0, 5, 2, 6, col); R(14, 5, 2, 6, col); } else { R(5, 0, 6, 2, col); R(5, 14, 6, 2, col); } return; }
+  if (d.horiz) { R(0, 5, 16, 6, col); R(0, 5, 16, 1, edge); R(7, 6, 1, 5, '#3d2a18'); if (locked) R(9, 7, 2, 3, '#ffd23f'); }
+  else { R(5, 0, 6, 16, col); R(5, 0, 1, 16, edge); R(6, 7, 5, 1, '#3d2a18'); if (locked) R(7, 9, 2, 3, '#ffd23f'); }
+}
+function drawLaser(L, alpha) {
+  const x0 = L.x * TS, y0 = L.y * TS, len = L.len * TS;
+  ctx.globalAlpha = alpha;
+  if (L.v) { ctx.fillStyle = 'rgba(255,59,79,.32)'; ctx.fillRect(x0 + 6, y0, 4, len); ctx.fillStyle = '#ff3b4f'; ctx.fillRect(x0 + 7, y0, 2, len); ctx.fillStyle = '#ffd0d5'; ctx.fillRect(x0 + 8, y0, 1, len); }
+  else { ctx.fillStyle = 'rgba(255,59,79,.32)'; ctx.fillRect(x0, y0 + 6, len, 4); ctx.fillStyle = '#ff3b4f'; ctx.fillRect(x0, y0 + 7, len, 2); ctx.fillStyle = '#ffd0d5'; ctx.fillRect(x0, y0 + 8, len, 1); }
+  ctx.globalAlpha = 1;
+}
+function drawEmitters(L) {
+  ctx.fillStyle = '#6a2633';
+  if (L.v) { ctx.fillRect(L.x * TS + 5, L.y * TS - 3, 6, 3); ctx.fillRect(L.x * TS + 5, (L.y + L.len) * TS, 6, 3); }
+  else { ctx.fillRect(L.x * TS - 3, L.y * TS + 5, 3, 6); ctx.fillRect((L.x + L.len) * TS, L.y * TS + 5, 3, 6); }
+}
+function bubble(x, y, ch, col) {
+  const X = Math.round(x * TS), Y = Math.round(y * TS) - 27;
+  ctx.fillStyle = 'rgba(8,10,20,.9)'; ctx.fillRect(X - 5, Y, 11, 11); ctx.fillRect(X - 1, Y + 11, 3, 2);
+  txt(ch, X + 1, Y, col, 10);
+}
+const workProg = p => p.work ? p.work.t / p.work.need : (p.wp || 0);
+const fogC = document.createElement('canvas'); fogC.width = VW; fogC.height = VH;
+const fctx = fogC.getContext('2d');
+function drawFog(W, eyes, camX, camY) {
+  fctx.globalCompositeOperation = 'source-over';
+  fctx.clearRect(0, 0, VW, VH);
+  fctx.fillStyle = 'rgba(4,6,14,.8)'; fctx.fillRect(0, 0, VW, VH);
+  fctx.globalCompositeOperation = 'destination-out';
+  for (const p of eyes) {
+    const R = p.st === 'hidden' ? 2.5 : SIGHT, px = p.x * TS - camX, py = p.y * TS - camY;
+    if (px < -R * TS || py < -R * TS || px > VW + R * TS || py > VH + R * TS) continue;
+    const gr = fctx.createRadialGradient(px, py, 4, px, py, R * TS);
+    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(.7, 'rgba(0,0,0,.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    fctx.fillStyle = gr; fctx.beginPath();
+    const N = 160;
+    for (let k = 0; k < N; k++) {
+      const a = k / N * Math.PI * 2, r = castRay(W, p.x, p.y, a, R, true);
+      const x = px + Math.cos(a) * r * TS, y = py + Math.sin(a) * r * TS;
+      if (k) fctx.lineTo(x, y); else fctx.moveTo(x, y);
+    }
+    fctx.closePath(); fctx.fill();
+  }
+  fctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(fogC, 0, 0);
+}
+function render(W, own, act) {
+  if (!W.bg) drawStatic(W);
+  const me = W.ps[act];
+  const camX = clamp(Math.round(me.x * TS - VW / 2), 0, W.w * TS - VW), camY = clamp(Math.round(me.y * TS - VH / 2), 0, W.h * TS - VH);
+  const hasDecoy = own.includes(0), hasLock = own.includes(1), hasHack = own.includes(2);
+  ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, VW, VH);
+  ctx.save(); ctx.translate(-camX, -camY);
+  ctx.drawImage(W.bg, camX, camY, VW, VH, camX, camY, VW, VH);
+  const inView = (x, y, m = 2) => x * TS > camX - m * TS && x * TS < camX + VW + m * TS && y * TS > camY - m * TS && y * TS < camY + VH + m * TS;
+  for (const d of W.doors) if (inView(d.x, d.y)) drawDoor(d);
+  for (const p of W.pcs) if (p.read) { ctx.fillStyle = '#3c4a5a'; ctx.fillRect(p.x * TS + 5, p.y * TS + 2, 6, 4); }
+  if (W.term && W.hacked) { ctx.fillStyle = '#ff6b6b'; ctx.fillRect(W.term.x * TS + 1, W.term.y * TS + 3, 4, 4); ctx.fillRect(W.term.x * TS + 6, W.term.y * TS + 3, 4, 4); }
+  if (W.panel && W.panel.done) { ctx.fillStyle = '#5be08a'; ctx.fillRect(W.panel.x * TS + 4, W.panel.y * TS + 3, 3, 3); ctx.fillRect(W.panel.x * TS + 9, W.panel.y * TS + 3, 3, 3); }
+  if (W.safe.open) { ctx.fillStyle = '#141722'; ctx.fillRect(W.safe.x * TS + 3, W.safe.y * TS + 3, 10, 10); ctx.fillStyle = '#9aa3b8'; ctx.fillRect(W.safe.x * TS + 13, W.safe.y * TS + 1, 3, 14); }
+  if (hasLock) for (const i of W.creaky) {
+    const x = (i % W.w) * TS, y = Math.floor(i / W.w) * TS;
+    ctx.fillStyle = 'rgba(255,210,63,.6)'; ctx.fillRect(x + 3, y + 7, 5, 1); ctx.fillRect(x + 8, y + 8, 4, 1); ctx.fillRect(x + 11, y + 6, 1, 2); ctx.fillRect(x + 5, y + 4, 1, 3);
+  }
+  for (const L of W.lasers) {
+    if (hasHack) drawEmitters(L);
+    if (L.on && (hasHack || L.flash > 0)) drawLaser(L, hasHack ? .9 : .7);
+    else if (L.flash > 0 && (tick >> 2) & 1) drawLaser(L, .5);
+  }
+  const eyes = own.map(r => W.ps[r]).filter(p => p.st !== 'caught');
+  const sees = (x, y) => eyes.some(p => Math.hypot(x - p.x, y - p.y) <= (p.st === 'hidden' ? 2.5 : SIGHT) && los(W, p.x, p.y, x, y));
+  for (const c of W.cams) {
+    const o = camOrigin(c);
+    c.vis = inView(c.x, c.y) && sees(o.x, o.y);
+    if (c.vis && !c.jam) cone(W, o.x, o.y, c.ang, CAM_FOV, CAM_R, c.meter > 0 ? 'rgba(255,120,120,.2)' : 'rgba(127,184,255,.14)');
+  }
+  for (const g of W.guards) {
+    g.vis = inView(g.x, g.y, SIGHT) && sees(g.x, g.y);
+    if (g.vis) cone(W, g.x, g.y, g.dir, g.st === 'chase' ? FOV * 1.3 : FOV, guardRange(W, g),
+      g.st === 'chase' ? 'rgba(255,90,90,.2)' : g.st === 'notice' ? 'rgba(255,200,90,.22)' : 'rgba(255,241,168,.13)');
+  }
+  if (W.loot && W.loot.holder < 0) {
+    const X = Math.round(W.loot.x * TS), Y = Math.round(W.loot.y * TS);
+    ctx.fillStyle = '#b8893f'; ctx.fillRect(X - 4, Y - 3, 8, 7); ctx.fillStyle = '#e6c27a'; ctx.fillRect(X - 4, Y - 3, 8, 1);
+    if ((tick >> 4) & 1) { ctx.fillStyle = '#fff'; ctx.fillRect(X + 3, Y - 6, 1, 1); }
+  }
+  for (const s of W.stones) { ctx.fillStyle = '#c9c4b2'; ctx.fillRect(Math.round(s.x * TS) - 1, Math.round(s.y * TS) - 1, 3, 3); }
+  const spr = [];
+  for (const g of W.guards) if (g.vis) spr.push([g.y, () => drawGuard(g)]);
+  W.ps.forEach((p, r) => {
+    p.shown = p.st !== 'hidden' && p.st !== 'caught' && (own.includes(r) || sees(p.x, p.y));
+    if (p.shown) spr.push([p.y, () => drawThief(W, p)]);
+  });
+  spr.sort((a, b) => a[0] - b[0]).forEach(s => s[1]());
+  for (const c of W.cams) if (c.vis) {
+    const X = c.x * TS + 8 + Math.round(Math.cos(c.base) * 5), Y = c.y * TS + 8 + Math.round(Math.sin(c.base) * 5);
+    ctx.fillStyle = '#3a4058'; ctx.fillRect(X - 3, Y - 3, 6, 6);
+    ctx.fillStyle = c.jam ? '#5a6078' : c.meter > 0 || (tick >> 5) & 1 ? '#ff4d5e' : '#7a2a33'; ctx.fillRect(X - 1, Y - 1, 2, 2);
+  }
+  for (const f of W.fx) if (f.k === 'r') {
+    ctx.strokeStyle = `rgba(233,228,210,${(1 - f.t / f.life) * .7})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(f.x * TS, f.y * TS, Math.max(1, f.r * TS * Math.min(1, f.t / 18)), 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+  drawFog(W, eyes, camX, camY);
+  ctx.save(); ctx.translate(-camX, -camY);
+  for (const [n, lx, ly] of W.S.labels) if (inView(lx, ly)) txt(n, lx * TS, ly * TS + 2, '#cdd2eb', 8, 'center', .5);
+  // the decoy hears footsteps through walls
+  const dec = W.ps[0];
+  if (hasDecoy && dec.st !== 'caught') for (const g of W.guards) {
+    if (g.vis || Math.hypot(g.x - dec.x, g.y - dec.y) > 7 || !inView(g.x, g.y)) continue;
+    const X = Math.round(g.x * TS), Y = Math.round(g.y * TS), a = .45 + .3 * Math.sin(tick / 8);
+    ctx.fillStyle = `rgba(255,122,89,${a})`;
+    ctx.fillRect(X - 4, Y - 2 + (((tick >> 4) & 1) ? 2 : 0), 3, 4); ctx.fillRect(X + 1, Y - 2 + (((tick >> 4) & 1) ? 0 : 2), 3, 4);
+  }
+  for (const g of W.guards) if (g.vis) {
+    const b = g.bubble;
+    if (b === '!') bubble(g.x, g.y, '!', '#ff4d5e');
+    else if (b === '?') bubble(g.x, g.y, '?', '#ffd23f');
+    else if (b === '…' && (tick >> 5) & 1) bubble(g.x, g.y, '…', '#c9c4b2');
+    if (g.st === 'notice' && g.meter > 0) { const X = Math.round(g.x * TS) - 7, Y = Math.round(g.y * TS) - 31; ctx.fillStyle = '#0a0c16'; ctx.fillRect(X, Y, 14, 3); ctx.fillStyle = g.meter > .6 ? '#ff4d5e' : '#ffd23f'; ctx.fillRect(X, Y, Math.round(14 * Math.min(1, g.meter)), 3); }
+  }
+  if (hasDecoy && dec.listen >= 0) {
+    const t = W.talks[dec.listen], ln = t.hint.line, n = Math.max(1, Math.floor(ln.length * Math.min(1, t.prog / TALK_NEED)));
+    ctx.restore(); ctx.save();
+    textBox([{ t: '盗み聞き中…', c: '#ff7a59' }, { t: ln.slice(0, n) + (n < ln.length ? '…' : '') }], VW / 2, W.banner && W.banner.t > 0 ? 44 : 8, 300);
+    ctx.restore(); ctx.save(); ctx.translate(-camX, -camY);
+  }
+  const tags = [];
+  W.ps.forEach((p, r) => {
+    const col = ROLES[r].color, X = Math.round(p.x * TS), Y = Math.round(p.y * TS);
+    const onScr = X > camX + 4 && X < camX + VW - 4 && Y > camY + 4 && Y < camY + VH - 4;
+    if (p.shown && workProg(p) > 0) { ctx.fillStyle = '#0a0c16'; ctx.fillRect(X - 8, Y - 24, 16, 3); ctx.fillStyle = col; ctx.fillRect(X - 8, Y - 24, Math.round(16 * workProg(p)), 3); }
+    if (r === act) {
+      if (p.st === 'hidden') txt('隠れ中', X, Y - 22, col, 8);
+      return;
+    }
+    if (!onScr) {
+      const ex = clamp(X, camX + 10, camX + VW - 10), ey = clamp(Y, camY + 10, camY + VH - 10), a = Math.atan2(Y - ey, X - ex);
+      ctx.fillStyle = col; ctx.beginPath();
+      ctx.moveTo(ex + Math.cos(a) * 6, ey + Math.sin(a) * 6); ctx.lineTo(ex + Math.cos(a + 2.4) * 5, ey + Math.sin(a + 2.4) * 5); ctx.lineTo(ex + Math.cos(a - 2.4) * 5, ey + Math.sin(a - 2.4) * 5);
+      ctx.closePath(); ctx.fill();
+      const lx = clamp(ex - Math.cos(a) * 14, camX + 22, camX + VW - 22), ly = clamp(ey - Math.sin(a) * 12 - 4, camY + 2, camY + VH - 12);
+      if (tags.some(t => Math.abs(t[0] - lx) < 36 && Math.abs(t[1] - ly) < 12)) return;
+      tags.push([lx, ly]);
+      txt(ROLES[r].name, lx, ly, col, 8);
+      return;
+    }
+    if (p.st === 'caught') { txt('捕まった', X, Y - 10, '#ff4d5e', 8); return; }
+    if (!p.shown) { ctx.globalAlpha = .75; ctx.fillStyle = col; ctx.fillRect(X - 2, Y - 8, 4, 4); ctx.fillRect(X - 1, Y - 9, 2, 6); ctx.globalAlpha = 1; }
+    // name tags of thieves standing together would overlap; the first one wins
+    if (tags.some(t => Math.abs(t[0] - X) < 36 && Math.abs(t[1] - (Y - 26)) < 12) || (Math.abs(me.x * TS - X) < 36 && Math.abs(me.y * TS - Y) < 12 && me.st !== 'caught')) return;
+    tags.push([X, Y - 26]);
+    txt(p.st === 'hidden' ? ROLES[r].name + '（隠れ中）' : ROLES[r].name, X, Y - 26, col, 8);
+  });
+  ctx.restore();
+  // screen-space overlays
+  if (W.level >= 2) {
+    const a = (W.level === 3 ? .22 : .12) + .06 * Math.sin(tick / 10);
+    ctx.fillStyle = `rgba(255,40,60,${a})`; ctx.fillRect(0, 0, VW, 3); ctx.fillRect(0, VH - 3, VW, 3); ctx.fillRect(0, 0, 3, VH); ctx.fillRect(VW - 3, 0, 3, VH);
+  }
+  if (W.banner && W.banner.t > 0) textBox(W.banner.sub ? [{ t: W.banner.text, c: '#ffd23f' }, { t: W.banner.sub, c: '#b9bed6' }] : [{ t: W.banner.text, c: '#ffd23f' }], VW / 2, 6, 372);
+  if (me.msg && me.msg.t > 0) textBox([{ t: me.msg.text }], VW / 2, VH - 26, 360);
+  if (me.st === 'caught') txt('捕まった…入口にもどされる', VW / 2, VH / 2 - 6, '#ff4d5e', 12);
+  if (act === 1 && me.st === 'dial' && me.dial) drawDial(me.dial);
+  if (W.phase !== 'play') { ctx.fillStyle = 'rgba(5,7,15,.45)'; ctx.fillRect(0, 0, VW, VH); txt(W.phase === 'clear' ? '脱出成功' : '失敗', VW / 2, VH / 2 - 12, W.phase === 'clear' ? '#4fd1a5' : '#ff4d5e', 20); }
+}
+function drawDial(D) {
+  const n = D.d.length, bw = 22, w = n * bw + 36, h = 92, x0 = Math.round(VW / 2 - w / 2), y0 = 52;
+  ctx.fillStyle = 'rgba(8,10,20,.94)'; ctx.fillRect(x0, y0, w, h);
+  ctx.fillStyle = '#3a4058'; ctx.fillRect(x0, y0, w, 2);
+  txt('金庫のダイヤル', VW / 2, y0 + 6, '#ffd23f', 10);
+  D.d.forEach((v, i) => {
+    const x = x0 + 18 + i * bw, y = y0 + 26;
+    ctx.fillStyle = i === D.i ? '#ffd23f' : '#2a3048'; ctx.fillRect(x, y, bw - 4, 26);
+    ctx.fillStyle = '#0d101c'; ctx.fillRect(x + 2, y + 2, bw - 8, 22);
+    txt(String(v), x + (bw - 4) / 2, y + 6, i === D.i ? '#ffd23f' : '#e9e4d2', 14);
+    if (i === D.i) { txt('▲', x + (bw - 4) / 2, y - 11, '#ffd23f', 8); txt('▼', x + (bw - 4) / 2, y + 27, '#ffd23f', 8); }
+  });
+  txt('←→ 桁　↑↓ 数字　Z 決定　X やめる', VW / 2, y0 + h - 14, '#b9bed6', 8);
+}
+function drawMini(W, own, act) {
+  const s = 3;
+  if (!W.miniBg) drawMiniBg(W);
+  if (mini.width !== W.w * s || mini.height !== W.h * s) { mini.width = W.w * s; mini.height = W.h * s; }
+  mctx.drawImage(W.miniBg, 0, 0);
+  for (const d of W.doors) { mctx.fillStyle = d.locked && !d.unl ? '#ffd23f' : '#7a5636'; mctx.fillRect(d.x * s, d.y * s, s, s); }
+  for (const p of W.pcs) if (p.read) { mctx.fillStyle = '#3c4a5a'; mctx.fillRect(p.x * s, p.y * s, s, s); }
+  if (own.includes(2)) for (const L of W.lasers) if (!L.off) { mctx.fillStyle = '#ff3b4f'; if (L.v) mctx.fillRect(L.x * s + 1, L.y * s, 1, L.len * s); else mctx.fillRect(L.x * s, L.y * s + 1, L.len * s, 1); }
+  if (own.includes(1)) for (const i of W.creaky) { mctx.fillStyle = 'rgba(255,210,63,.7)'; mctx.fillRect((i % W.w) * s + 1, Math.floor(i / W.w) * s + 1, 1, 1); }
+  if (own.includes(2) && W.hacked) {
+    for (const c of W.cams) { mctx.fillStyle = c.jam ? '#5a6078' : '#7fb8ff'; mctx.fillRect(c.x * s, c.y * s, s, s); }
+    for (const g of W.guards) { mctx.fillStyle = g.st === 'chase' ? '#ff4d5e' : '#ff8a8a'; mctx.fillRect(Math.round(g.x * s) - 1, Math.round(g.y * s) - 1, 3, 3); }
+  }
+  if (W.loot && W.loot.holder < 0 && (tick >> 4) & 1) { mctx.fillStyle = '#e8c65a'; mctx.fillRect(Math.round(W.loot.x * s) - 1, Math.round(W.loot.y * s) - 1, 3, 3); }
+  W.ps.forEach((p, r) => {
+    if (p.st === 'caught') return;
+    const x = Math.round(p.x * s) - 2, y = Math.round(p.y * s) - 2;
+    if (r === act && (tick >> 4) & 1) { mctx.fillStyle = '#fff'; mctx.fillRect(x - 1, y - 1, 6, 6); }
+    mctx.fillStyle = ROLES[r].color; mctx.fillRect(x, y, 4, 4);
+  });
+}
+
+// ---------- HUD ----------
+const el = {
+  alarmBar: $('alarmBar'), alarmLv: $('alarmLv'), hStage: $('hStage'), hTime: $('hTime'), hHint: $('hHint'), roles: $('roles'), notes: $('notes'), prompt: $('prompt'),
+  ovTitle: $('ovTitle'), ovNet: $('ovNet'), ovResult: $('ovResult'), ovPause: $('ovPause'), stageList: $('stageList'),
+  netChoose: $('netChoose'), netRoom: $('netRoom'), netNo: $('netNo'), netMsg: $('netMsg'), netCode: $('netCode'), roleSlots: $('roleSlots'), netPeople: $('netPeople'),
+  btnCopy: $('btnCopy'), btnNetStart: $('btnNetStart'), btnPause: $('btnPause'), btnMute: $('btnMute'),
+};
+const cache = {};
+function setText(k, node, v) { if (cache[k] !== v) { cache[k] = v; node.textContent = v; } }
+function buildRolesPanel() {
+  el.roles.textContent = '';
+  ROLES.forEach((R, r) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'rbtn'; b.style.setProperty('--c', R.color);
+    const i = document.createElement('i'), rn = document.createElement('span'), ro = document.createElement('span'), rs = document.createElement('span');
+    rn.className = 'rn'; rn.textContent = R.name; const sm = document.createElement('small'); sm.textContent = R.code; rn.append(sm);
+    ro.className = 'ro'; rs.className = 'rs';
+    b.append(i, rn, ro, rs);
+    b.addEventListener('click', () => { swapRole(r); b.blur(); });
+    li.append(b); el.roles.append(li);
+  });
+  cache.roles = '';
+}
+function ownerName(o) { return o === myIdx() ? 'あなた' : o === 0 ? '部屋主' : `${o + 1}P`; }
+function updateHud() {
+  const W = (screen === 'game' || screen === 'result') ? world() : null;
+  if (!W) return;
+  el.alarmBar.style.width = W.alarm + '%';
+  setText('lv', el.alarmLv, LEVEL_NAME[W.level]); el.alarmLv.dataset.lv = W.level;
+  setText('st', el.hStage, `${W.S.no}　${W.S.name}`);
+  setText('tm', el.hTime, fmt(W.time));
+  setText('hh', el.hHint, `${W.found}/${W.hints.length}`);
+  const own = ownRoles(), act = activeRole(), solo = !NET.role;
+  const rk = W.ps.map((p, r) => [OWN[r], p.st, W.loot && W.loot.holder === r, r === act, p.sneak].join()).join('|') + own.join();
+  if (rk !== cache.roles) {
+    cache.roles = rk;
+    [...el.roles.children].forEach((li, r) => {
+      const b = li.firstChild, p = W.ps[r];
+      b.classList.toggle('on', r === act);
+      b.disabled = !own.includes(r);
+      b.children[2].textContent = solo ? (r === act ? '操作中' : '') : ownerName(OWN[r]) + (r === act ? '・操作中' : '');
+      const st = [];
+      if (p.st === 'caught') st.push('捕まった'); else if (p.st === 'hidden') st.push('ロッカーに隠れている'); else if (p.st === 'dial') st.push('ダイヤルを回している');
+      if (W.loot && W.loot.holder === r) st.push('お宝を持っている');
+      b.children[3].textContent = st.join('・');
+    });
+  }
+  const nb = NET.role === 'guest' ? (W.nbList || []) : own.flatMap(r => W.nb[r].map(t => [r, t]));
+  const nk = JSON.stringify(nb) + own.join();
+  if (nk !== cache.nb) {
+    cache.nb = nk; el.notes.textContent = '';
+    if (!nb.length) {
+      const li = document.createElement('li'); li.className = 'empty';
+      li.textContent = own.includes(1) && own.length === 1
+        ? 'まだ何もない。金庫の番号は、仲間（ハッカーと陽動）が見つけたヒントを聞いて覚えておく。'
+        : 'まだ何もない。ハッカーはパソコンから、陽動は見張りの雑談から、金庫の番号のヒントを集める。';
+      el.notes.append(li);
+    }
+    for (const [r, t] of nb) {
+      const li = document.createElement('li'), s = document.createElement('span');
+      s.className = 'who'; s.style.color = ROLES[r].color; s.textContent = ROLES[r].name;
+      li.append(s, document.createTextNode(t)); el.notes.append(li);
+    }
+  }
+  setText('pr', el.prompt, screen === 'game' ? promptText(W, act) : '');
+}
+function promptText(W, r) {
+  const p = W.ps[r];
+  if (W.phase !== 'play') return '';
+  if (p.st === 'caught') return '捕まった…少しすると入口にもどる';
+  if (p.st === 'hidden') return 'ロッカーの中（見張りに見つからない）。Z で出る';
+  if (p.st === 'dial') return '←→ で桁、↑↓ で数字、Z で決定、X でやめる。番号は仲間から聞く';
+  if (workProg(p) > 0) return '作業中…（Z を押したまま動かない）';
+  const parts = [];
+  const it = nearInteract(W, p);
+  if (it) parts.push(describe(W, p, it).text);
+  W.talks.forEach(t => {
+    if (t.prog >= TALK_NEED || Math.hypot(p.x - t.x, p.y - t.y) > TALK_R) return;
+    parts.push(r === 0 ? (p.listen >= 0 ? `盗み聞き中… ${Math.floor(t.prog / TALK_NEED * 100)}%（見張りが話している間、近くにいる）` : '見張りの話が聞こえる距離。話している間は近くにいる') : '見張りが何か話している（陽動なら聞き取れる）');
+  });
+  if (!parts.length) {
+    const s = Math.ceil(p.cd / 60);
+    parts.push(r === 0 ? (p.cd > 0 ? `X: 石を投げる（あと ${s} 秒）` : 'X: 前に石を投げて物音を立てる')
+      : r === 2 ? (p.cd > 0 ? `X: カメラを止める（あと ${s} 秒）` : 'X: 近くのカメラを 8 秒止める')
+      : 'Z 長押し: 鍵のかかった扉の前で鍵を開ける');
+    if (ownRoles().length > 1) parts.push('C: 役を切りかえ');
+  }
+  return parts.join('　/　');
+}
+function drawStageList() {
+  el.stageList.textContent = '';
+  STAGES.forEach((S, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pick';
+    const open = i < save.unlocked;
+    b.disabled = !open || NET.role === 'guest';
+    b.setAttribute('aria-pressed', String(i === selSi));
+    const no = document.createElement('span'); no.className = 'no'; no.textContent = S.no;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = S.name;
+    const bs = document.createElement('span'); bs.className = 'bs';
+    const best = save.best[i];
+    bs.textContent = !open ? '前のステージを成功すると開く' : best ? `最高 ${best.rank}　${fmt(best.time)}` : `番号 ${S.talks.length + S.map.join('').split('P').length - 1} 桁`;
+    b.append(no, nm, bs);
+    b.addEventListener('click', () => { selSi = i; save.si = i; store(); drawStageList(); PV = buildStage(i, 1); if (NET.role === 'host') lobbyAll(); b.blur(); });
+    el.stageList.append(b);
+  });
+}
+
+// ---------- screens ----------
+let G = null, GW = null, PV = null, GV = null;
+let screen = 'title', paused = false, mode = 'solo';
+let selSi = clamp(save.si | 0, 0, Math.max(0, Math.min(save.unlocked, STAGES.length) - 1));
+const world = () => NET.role === 'guest' ? GW : G;
+function hideOverlays() { el.ovTitle.hidden = el.ovNet.hidden = el.ovResult.hidden = el.ovPause.hidden = true; }
+function setMode(m) { mode = m; for (const b of document.querySelectorAll('.pick[data-m]')) b.setAttribute('aria-pressed', String(b.dataset.m === m)); }
+function toTitle(msg) {
+  screen = 'title'; paused = false; G = null; GW = null; GV = null;
+  hideOverlays(); el.ovTitle.hidden = false;
+  PV = buildStage(selSi, 1);
+  drawStageList();
+  setText('pr', el.prompt, msg || 'ステージと遊び方を選んで、はじめる。');
+}
+function newGame(si, seed) {
+  selSi = si; save.si = si; store();
+  G = buildStage(si, seed ?? Math.floor(Math.random() * 1e9));
+  for (const c of CL) if (c) c.inp.used = c.inp.cnt.slice();
+  fixActive();
+}
+function enterGame() {
+  screen = 'game'; paused = false;
+  hideOverlays();
+  buildRolesPanel(); cache.nb = '';
+  const W = world();
+  banner(W, `${W.S.no}　${W.S.name}`, '金庫を開けてお宝を盗み、入口（緑の床）まで運ぶ');
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  audio();
+}
+function tryStart() {
+  audio();
+  if (screen === 'title') { if (mode === 'net') openLobby(); else { OWN = [0, 0, 0]; newGame(selSi); enterGame(); } }
+  else if (screen === 'lobby' && NET.role === 'host') startNetGame(selSi);
+}
+function restart(next) {
+  if (NET.role === 'guest') return;
+  const si = clamp(selSi + (next ? 1 : 0), 0, STAGES.length - 1);
+  if (NET.role === 'host') startNetGame(si); else { newGame(si); enterGame(); }
+}
+function showResult(res) {
+  screen = 'result';
+  hideOverlays(); el.ovResult.hidden = false;
+  const ok = res.kind === 'clear', S = STAGES[res.si];
+  $('resHead').textContent = ok ? '脱出成功' : '失敗';
+  $('resHead').className = 'big ' + (ok ? 'ok' : 'ng');
+  $('resWhy').textContent = `${S.no}　${S.name}　― ${res.why}`;
+  const dl = $('resStats'); dl.textContent = '';
+  const rows = [['時間', fmt(res.time)], ['警報', `${Math.round(res.alarm)} / 100`], ['見つけたヒント', `${res.found} / ${res.total}`]];
+  if (ok) rows.unshift(['評価', res.rank]);
+  for (const [k, v] of rows) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; if (k === '評価') dd.className = 'rank'; dl.append(dt, dd); }
+  const guest = NET.role === 'guest';
+  $('btnNext').hidden = guest || !ok || res.si >= STAGES.length - 1;
+  $('btnAgain').hidden = guest;
+  $('resNote').textContent = guest ? '次の試合は、部屋をつくった人が始めます。' : ok ? `評価は時間（目安 ${fmt(S.par * 60)}）と警報の低さで決まる。` : '';
+}
+function togglePause(force) {
+  if (screen !== 'game' || NET.role) return;
+  paused = force === undefined ? !paused : force;
+  el.ovPause.hidden = !paused;
+  for (const k in keys) keys[k] = false;
+}
+function toggleMute() { muted = !muted; save.mute = muted; store(); el.btnMute.textContent = muted ? '音 OFF' : '音 ON'; if (!muted) { audio(); play('tick'); } }
+el.btnMute.textContent = muted ? '音 OFF' : '音 ON';
+
+// ---------- network ----------
+// The host's browser runs the whole heist. Guests send their buttons and draw what the host sends back,
+// filtered so each browser only gets the notebook and messages of the roles it plays.
+// PeerJS only brokers the first handshake; game traffic goes browser to browser.
+const PEERJS_URL = 'https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js';
+const ID_PREFIX = 'mitsukage-v1-';
+const NET = { role: null, peer: null, host: null, code: '', bot: false, timer: 0, slot: 0, on: [true, false, false] };
+function loadPeer() {
+  if (window.Peer) return Promise.resolve();
+  return new Promise((ok, ng) => { const s = document.createElement('script'); s.src = PEERJS_URL; s.onload = ok; s.onerror = () => ng(new Error('load')); document.head.append(s); });
+}
+function netMsg(t) { el.netMsg.textContent = t; }
+function openLobby() {
+  screen = 'lobby';
+  hideOverlays(); el.ovNet.hidden = false;
+  el.netChoose.hidden = false; el.netRoom.hidden = true; el.btnNetStart.hidden = true;
+  netMsg('部屋をつくるか、友達から聞いた部屋番号を入れてください。');
+}
+function leaveNet(msg) {
+  clearTimeout(NET.timer);
+  if (NET.peer) { try { NET.peer.destroy(); } catch {} }
+  NET.role = null; NET.peer = null; NET.host = null; NET.code = ''; NET.slot = 0;
+  CL[1] = CL[2] = null; OWN = [0, 0, 0]; CL[0].active = 0;
+  for (const k in keys) keys[k] = false;
+  toTitle(msg);
+}
+function netError(err) {
+  const type = err && err.type;
+  return {
+    'peer-unavailable': 'その番号の部屋が見つかりませんでした。番号を確かめてください。',
+    'browser-incompatible': 'このブラウザはネット対戦に対応していません。',
+    'network': 'サーバーにつながりませんでした。ネットの接続を確かめてください。',
+    'server-error': 'サーバーにつながりませんでした。少し待ってからやり直してください。',
+    'socket-error': 'サーバーとの接続が切れました。',
+  }[type] || 'つながりませんでした（' + (type || err) + '）。';
+}
+function startTimeout(ms, text) { clearTimeout(NET.timer); NET.timer = setTimeout(() => netMsg(text), ms); }
+async function hostRoom(code) {
+  if (NET.role) return;
+  NET.role = 'host'; OWN = [0, 0, 0];
+  netMsg('部屋をつくっています…');
+  el.netChoose.hidden = true;
+  try { await loadPeer(); } catch { leaveNet('通信の部品を読み込めませんでした。ネットの接続を確かめてください。'); return; }
+  NET.code = code || String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+  const peer = NET.peer = new Peer(ID_PREFIX + NET.code);
+  startTimeout(12000, 'サーバーの返事がありません。この画面ではネットが使えないのかもしれません（claude.ai の公開ページの中など）。');
+  peer.on('open', () => {
+    clearTimeout(NET.timer);
+    el.netRoom.hidden = false; el.btnNetStart.hidden = false; el.btnCopy.hidden = false;
+    el.netNo.textContent = NET.code;
+    netMsg('友達に部屋番号か招待リンクを送ってください。そろったらスタート（1 人でも始められる）。');
+    drawSlots();
+  });
+  peer.on('connection', onGuestConn);
+  peer.on('disconnected', () => { if (NET.role === 'host') { try { peer.reconnect(); } catch {} } });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id' && !code) { try { peer.destroy(); } catch {} NET.role = null; hostRoom(); return; }
+    if (screen === 'lobby') netMsg(netError(err));
+  });
+}
+function onGuestConn(conn) {
+  conn.on('open', () => {
+    const slot = !CL[1] ? 1 : !CL[2] ? 2 : -1;
+    if (slot < 0 || screen !== 'lobby') {
+      conn.send({ t: 'no', why: slot < 0 ? '部屋がいっぱいです（3 人まで）。' : 'もう始まっています。部屋をつくった人がタイトルにもどってから、入り直してください。' });
+      setTimeout(() => conn.close(), 500); return;
+    }
+    conn.slot = slot;
+    CL[slot] = { conn, inp: newInp(), active: 0 };
+    const mine = [0, 1, 2].filter(r => OWN[r] === 0);
+    if (mine.length >= 2) { const give = mine.filter(r => r !== CL[0].active).pop(); OWN[give] = slot; CL[slot].active = give; }
+    play('join'); drawSlots(); lobbyAll();
+  });
+  conn.on('data', d => {
+    if (!d) return;
+    const c = CL[conn.slot];
+    if (!c || c.conn !== conn) return;
+    if (d.t === 'in') {
+      const n = c.inp; n.held = {};
+      ACTS.forEach((a, i) => { n.held[a] = !!(d.h & (1 << i)); });
+      if (Array.isArray(d.c)) n.cnt = d.c;
+      if (OWN[d.a] === conn.slot) c.active = d.a;
+    } else if (d.t === 'claim' && screen === 'lobby' && d.r >= 0 && d.r < 3) { claim(conn.slot, d.r); drawSlots(); lobbyAll(); }
+  });
+  const gone = () => {
+    const s = conn.slot;
+    if (!s || !CL[s] || CL[s].conn !== conn) return;
+    CL[s] = null;
+    for (let r = 0; r < 3; r++) if (OWN[r] === s) OWN[r] = 0;
+    fixActive();
+    if (G && screen === 'game') banner(G, `${s + 1}P が抜けた`, '抜けた人の役は、部屋をつくった人が C で切りかえて動かせる');
+    if (screen === 'lobby') { drawSlots(); lobbyAll(); }
+    cache.roles = '';
+  };
+  conn.on('close', gone);
+  conn.on('error', gone);
+}
+function drawSlots() {
+  el.roleSlots.textContent = '';
+  const me = myIdx(), on = NET.role === 'guest' ? NET.on : [true, !!CL[1], !!CL[2]];
+  ROLES.forEach((R, r) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'slot' + (OWN[r] === me ? ' me' : ''); b.style.setProperty('--c', R.color);
+    const n = document.createElement('b'); n.textContent = R.name;
+    const o = document.createElement('span'); o.textContent = ownerName(OWN[r]);
+    b.append(n, o);
+    b.addEventListener('click', () => {
+      if (NET.role === 'host') { claim(0, r); drawSlots(); lobbyAll(); }
+      else if (NET.host && NET.host.open) { try { NET.host.send({ t: 'claim', r }); } catch {} }
+    });
+    el.roleSlots.append(b);
+  });
+  el.netPeople.textContent = `　つながっている人 ${on.filter(Boolean).length} / 3`;
+}
+function netSendAll(m) { for (const c of [CL[1], CL[2]]) if (c && c.conn.open) { try { c.conn.send(m); } catch {} } }
+function lobbyAll() { [1, 2].forEach(s => { const c = CL[s]; if (c && c.conn.open) { try { c.conn.send({ t: 'lobby', own: OWN, on: [true, !!CL[1], !!CL[2]], si: selSi, you: s }); } catch {} } }); }
+function startNetGame(si) {
+  newGame(si);
+  [1, 2].forEach(s => { const c = CL[s]; if (c && c.conn.open) { try { c.conn.send({ t: 'go', si, seed: G.seed, own: OWN, you: s }); } catch {} } });
+  enterGame();
+}
+function snapFor(ci) {
+  const W = G, own = [0, 1, 2].filter(r => OWN[r] === ci);
+  return {
+    t: 's', ph: W.phase, tm: W.time, al: W.alarm, lv: W.level, fd: W.found, hk: W.hacked ? 1 : 0, ow: OWN, why: W.why,
+    P: W.ps.map(p => [r2(p.x), r2(p.y), r2(p.dir), p.st, p.sneak ? 1 : 0, r2(workProg(p)), p.moving ? 1 : 0, p.cd, p.listen]),
+    Gd: W.guards.map(g => [g.id, r2(g.x), r2(g.y), r2(g.dir), g.st, r2(g.meter), g.bubble]),
+    C: W.cams.map(c => [r2(c.ang), c.jam > 0 ? 1 : 0, r2(c.meter)]),
+    D: W.doors.map(d => (d.open ? 1 : 0) + (d.unl ? 2 : 0)).join(''),
+    Lz: W.lasers.map(L => (L.on ? 1 : 0) + (L.off ? 2 : 0) + (L.flash > 0 ? 4 : 0)).join(''),
+    pc: W.pcs.map(p => p.read ? 1 : 0).join(''),
+    ob: [W.term && W.term.done ? 1 : 0, W.panel && W.panel.done ? 1 : 0, W.safe.open ? 1 : 0, W.safe.lockT],
+    lo: W.loot ? [r2(W.loot.x), r2(W.loot.y), W.loot.holder] : null,
+    tk: W.talks.map(t => t.prog), st: W.stones.map(s => [r2(s.x), r2(s.y)]),
+    fx: W.fxNew, sn: W.snd, bn: W.banner ? [W.banner.id, W.banner.text, W.banner.sub] : null,
+    nb: own.flatMap(r => W.nb[r].map(t => [r, t])),
+    ms: own.map(r => { const m = W.ps[r].msg; return m ? [r, m.id, m.text] : null; }).filter(Boolean),
+    dl: own.includes(1) && W.ps[1].dial ? W.ps[1].dial : null,
+  };
+}
+function sendSnaps() { [1, 2].forEach(s => { const c = CL[s]; if (c && c.conn.open) { try { c.conn.send(snapFor(s)); } catch {} } }); }
+
+// --- guest side ---
+async function joinRoom(code) {
+  if (NET.role) return;
+  if (!/^\d{4}$/.test(code)) { netMsg('部屋番号は 4 桁の数字です。'); return; }
+  NET.role = 'guest'; NET.code = code;
+  el.netChoose.hidden = true;
+  netMsg(`部屋 ${code} につないでいます…`);
+  try { await loadPeer(); } catch { leaveNet('通信の部品を読み込めませんでした。ネットの接続を確かめてください。'); return; }
+  const peer = NET.peer = new Peer();
+  startTimeout(15000, 'つながりませんでした。回線の相性でつながらないことがあります。別の回線（スマホのテザリングなど）でも試してみてください。');
+  peer.on('open', () => {
+    const conn = NET.host = peer.connect(ID_PREFIX + code, { reliable: true, serialization: 'json' });
+    conn.on('open', () => { clearTimeout(NET.timer); netMsg('つながりました。部屋をつくった人がスタートするのを待っています。'); el.netRoom.hidden = false; el.btnCopy.hidden = true; el.netNo.textContent = code; });
+    conn.on('data', onHostData);
+    conn.on('close', () => { if (NET.role === 'guest') leaveNet('部屋をつくった人との接続が切れました。'); });
+  });
+  peer.on('error', err => {
+    clearTimeout(NET.timer);
+    if (NET.bot && err.type === 'peer-unavailable') { try { peer.destroy(); } catch {} NET.role = null; setTimeout(() => joinRoom(code), 2000); return; }
+    if (screen === 'lobby') { netMsg(netError(err)); el.netChoose.hidden = false; NET.role = null; try { peer.destroy(); } catch {} }
+  });
+}
+function onHostData(d) {
+  if (!d) return;
+  if (d.t === 'no') { leaveNet(d.why); return; }
+  if (d.t === 'lobby') {
+    OWN = d.own; NET.slot = d.you; NET.on = d.on; selSi = d.si;
+    drawSlots();
+    netMsg(`ステージ: ${STAGES[d.si].no} ${STAGES[d.si].name}。部屋をつくった人がスタートするのを待っています。役のカードを押すと、自分の役にできる。`);
+    if (screen === 'lobby') PV = buildStage(d.si, 1);
+    return;
+  }
+  if (d.t === 'go') {
+    OWN = d.own; NET.slot = d.you; selSi = d.si;
+    GW = buildStage(d.si, d.seed);
+    GV = { active: Math.max(0, OWN.indexOf(d.you)), snaps: [], sent: '', lastSend: 0 };
+    LOC.used = LOC.cnt.slice();
+    enterGame();
+    return;
+  }
+  if (!GW) return;
+  if (d.t === 's') { d.at = performance.now(); GV.snaps.push(d); if (GV.snaps.length > 10) GV.snaps.shift(); applySnap(GW, d); return; }
+  if (d.t === 'end') { showResult(d.res); if (d.res.kind === 'clear') recordClear(d.res); }
+}
+function applySnap(W, s) {
+  W.phase = s.ph; W.time = s.tm; W.alarm = s.al; W.level = s.lv; W.found = s.fd; W.hacked = !!s.hk; W.why = s.why || '';
+  if (s.ow.join() !== OWN.join()) { OWN = s.ow; fixActive(); cache.roles = ''; }
+  s.P.forEach((q, r) => { const p = W.ps[r]; p.st = q[3]; p.sneak = !!q[4]; p.wp = q[5]; p.moving = !!q[6]; p.cd = q[7]; p.listen = q[8]; });
+  W.guards = s.Gd.map(q => {
+    let g = W.gById.get(q[0]);
+    if (!g) { g = { id: q[0], k: 'patrol', x: q[1], y: q[2], dir: q[3], st: q[4], meter: 0, bubble: '', home: { x: q[1], y: q[2], dir: q[3] } }; W.gById.set(q[0], g); }
+    g.st = q[4]; g.meter = q[5]; g.bubble = q[6];
+    return g;
+  });
+  s.C.forEach((q, i) => { W.cams[i].jam = q[1]; W.cams[i].meter = q[2]; });
+  W.doors.forEach((d, i) => { const v = +s.D[i]; d.open = !!(v & 1); d.unl = !!(v & 2); });
+  W.lasers.forEach((L, i) => { const v = +s.Lz[i]; L.on = !!(v & 1); L.off = !!(v & 2); if (v & 4) L.flash = Math.max(L.flash, 3); });
+  W.pcs.forEach((p, i) => { p.read = s.pc[i] === '1'; });
+  if (W.term) W.term.done = !!s.ob[0];
+  if (W.panel) W.panel.done = !!s.ob[1];
+  W.safe.open = !!s.ob[2]; W.safe.lockT = s.ob[3];
+  W.loot = s.lo ? { x: s.lo[0], y: s.lo[1], holder: s.lo[2] } : null;
+  W.stones = s.st.map(q => ({ x: q[0], y: q[1] }));
+  s.tk.forEach((v, i) => { W.talks[i].prog = v; });
+  for (const f of s.fx) addFxLocal(W, f);
+  for (const k of s.sn) play(k);
+  if (s.bn && (!W.banner || W.banner.id !== s.bn[0])) W.banner = { id: s.bn[0], text: s.bn[1], sub: s.bn[2], t: 200 };
+  W.nbList = s.nb;
+  for (const m of s.ms) { const p = W.ps[m[0]]; if (!p.msg || p.msg.id !== m[1]) p.msg = { id: m[1], text: m[2], t: 150 }; }
+  W.ps[1].dial = s.dl;
+}
+// Draws the host's world about 90 ms in the past, blending between the two snapshots around that moment.
+function guestInterp() {
+  const S = GV.snaps;
+  if (!S.length) return;
+  const rt = performance.now() - 90;
+  let a = S[0], b = S[0];
+  for (let i = S.length - 1; i > 0; i--) if (S[i - 1].at <= rt) { a = S[i - 1]; b = S[i]; break; }
+  const al = a === b ? 1 : clamp((rt - a.at) / (b.at - a.at), 0, 1);
+  b.P.forEach((q, r) => {
+    const o = a.P[r], p = GW.ps[r];
+    let x = q[0], y = q[1];
+    if (o && Math.abs(o[0] - x) < 3 && Math.abs(o[1] - y) < 3) { x = o[0] + (x - o[0]) * al; y = o[1] + (y - o[1]) * al; }
+    p.x = x; p.y = y; p.dir = q[2];
+  });
+  const old = new Map(a.Gd.map(q => [q[0], q]));
+  for (const q of b.Gd) {
+    const g = GW.gById.get(q[0]);
+    if (!g) continue;
+    const o = old.get(q[0]);
+    let x = q[1], y = q[2], d = q[3];
+    if (o && Math.abs(o[1] - x) < 3 && Math.abs(o[2] - y) < 3) { x = o[1] + (x - o[1]) * al; y = o[2] + (y - o[2]) * al; d = o[3] + angDiff(d, o[3]) * al; }
+    g.moving = Math.abs(x - g.x) + Math.abs(y - g.y) > 0.002;
+    g.x = x; g.y = y; g.dir = d;
+  }
+  b.C.forEach((q, i) => { const o = a.C[i]; GW.cams[i].ang = o ? o[0] + angDiff(q[0], o[0]) * al : q[0]; });
+}
+function guestStep() {
+  if (!GW || !GV) return;
+  const h = readHeld();
+  let bits = 0;
+  ACTS.forEach((a, i) => { if (h[a]) bits |= 1 << i; });
+  const sig = bits + ':' + LOC.cnt.join() + ':' + GV.active;
+  if ((sig !== GV.sent || tick - GV.lastSend > 30) && NET.host && NET.host.open) {
+    GV.sent = sig; GV.lastSend = tick;
+    try { NET.host.send({ t: 'in', h: bits, c: LOC.cnt, a: GV.active }); } catch {}
+  }
+  guestInterp();
+}
+function botKeys() {
+  if (screen !== 'game') { for (const a of ACTS) keys[a] = false; return; }
+  if (tick % 12 === 0) for (const a of ACTS) { const v = Math.random() < (a === 'act' ? .3 : a === 'skill' ? .08 : .3); if (v && !keys[a]) press(a); keys[a] = v; }
+}
+
+// ---------- main loop ----------
+function step() {
+  tick++;
+  if (NET.bot) {
+    botKeys();
+    // network test: report to the page that holds the three test frames
+    if (tick % 60 === 0 && window.parent !== window) {
+      const W = world();
+      window.parent.postMessage({ mitsukage: { role: NET.role, slot: NET.slot, screen, own: OWN.join(''), act: activeRole(),
+        time: W ? W.time : -1, alarm: W ? W.alarm : -1, phase: W ? W.phase : '', guards: W ? W.guards.length : 0, snaps: GV ? GV.snaps.length : 0,
+        me: W ? W.ps.map(p => p.x.toFixed(1) + ',' + p.y.toFixed(1) + ':' + p.st).join(' ') : '' } }, '*');
+    }
+  }
+  LOC.held = readHeld();
+  if (NET.role === 'guest') { if (screen === 'game' || screen === 'result') guestStep(); }
+  else if ((screen === 'game' || screen === 'result') && G && !paused) {
+    updateGame();
+    if (NET.role === 'host' && tick % 2 === 0) sendSnaps();
+    if (NET.role !== 'host' || tick % 2 === 0) { G.fxNew = []; G.snd = []; }
+  }
+  stepFx(screen === 'title' || screen === 'lobby' ? null : world());
+  if (tick % 8 === 0) updateHud();
+}
+function draw() {
+  fitHud();
+  const inGame = screen === 'game' || screen === 'result';
+  const W = inGame ? world() : PV;
+  if (!W) { ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, VW, VH); return; }
+  const own = inGame ? ownRoles() : [0, 1, 2];
+  const act = inGame ? activeRole() : 0;
+  render(W, own.length ? own : [act], act);
+  if (tick % 6 === 0) drawMini(W, own, act);
+}
+let last = performance.now(), acc = 0;
+function frame(now) {
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= 1000 / 60) { acc -= 1000 / 60; step(); }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+// ---------- events ----------
+addEventListener('keydown', ev => {
+  if (ev.target && ev.target.tagName === 'INPUT') { if (ev.code === 'Enter' && ev.target === el.netCode) { ev.preventDefault(); joinRoom(el.netCode.value.trim()); } return; }
+  const a = KMAP[ev.code];
+  if (a) {
+    if (screen === 'game' || ev.code.startsWith('Arrow') || ev.code === 'Space') ev.preventDefault();
+    if (!ev.repeat) { keys[a] = true; press(a); audio(); }
+    return;
+  }
+  if (ev.code === 'Enter' && (screen === 'title' || screen === 'lobby')) { ev.preventDefault(); tryStart(); }
+  else if ((ev.code === 'KeyC' || ev.code === 'Tab') && screen === 'game') { ev.preventDefault(); swapRole(); }
+  else if (ev.code === 'Escape' && screen === 'lobby') leaveNet();
+  else if (ev.code === 'KeyP' || ev.code === 'Escape') togglePause();
+  else if (ev.code === 'KeyM') toggleMute();
+});
+addEventListener('keyup', ev => { const a = KMAP[ev.code]; if (a) keys[a] = false; });
+// Losing focus pauses a solo game. In a network game the others keep playing, so it only releases the keys.
+const autoPause = () => { for (const k in keys) keys[k] = false; if (screen === 'game' && !paused && !NET.role) togglePause(true); };
+addEventListener('blur', autoPause);
+document.addEventListener('visibilitychange', () => { if (document.hidden) autoPause(); });
+
+$('btnStart').addEventListener('click', tryStart);
+for (const b of document.querySelectorAll('.pick[data-m]')) b.addEventListener('click', () => { setMode(b.dataset.m); b.blur(); });
+$('btnNext').addEventListener('click', () => restart(true));
+$('btnAgain').addEventListener('click', () => restart(false));
+$('btnToTitle').addEventListener('click', () => { if (NET.role) leaveNet(); else toTitle(); });
+$('btnResume').addEventListener('click', () => togglePause(false));
+$('btnQuit').addEventListener('click', () => toTitle());
+el.btnPause.addEventListener('click', () => { togglePause(); el.btnPause.blur(); });
+el.btnMute.addEventListener('click', () => { toggleMute(); el.btnMute.blur(); });
+$('btnHost').addEventListener('click', () => { audio(); hostRoom(); });
+$('btnJoin').addEventListener('click', () => { audio(); joinRoom(el.netCode.value.trim()); });
+el.btnNetStart.addEventListener('click', tryStart);
+$('btnNetBack').addEventListener('click', () => leaveNet());
+el.btnCopy.addEventListener('click', () => {
+  const link = location.href.split('#')[0] + '#join=' + NET.code;
+  const done = () => netMsg('招待リンクをコピーしました。Discord などに貼ってください。');
+  const fallback = () => netMsg('コピーできませんでした。このリンクを送ってください: ' + link);
+  try { navigator.clipboard.writeText(link).then(done, fallback); } catch { fallback(); }
+});
+cv.addEventListener('pointerdown', () => audio());
+
+const dpad = $('dpad'), knob = $('knob');
+let padId = null;
+function padSet(ev) {
+  const r = dpad.getBoundingClientRect();
+  const x = ev.clientX - (r.left + r.width / 2), y = ev.clientY - (r.top + r.height / 2), dead = r.width * .14;
+  const was = { ...touch };
+  touch.left = x < -dead; touch.right = x > dead; touch.up = y < -dead; touch.down = y > dead;
+  for (const a of ['left', 'right', 'up', 'down']) if (touch[a] && !was[a]) press(a);
+  const m = r.width / 3;
+  knob.style.transform = `translate(${clamp(x, -m, m)}px, ${clamp(y, -m, m)}px)`;
+}
+function padEnd(ev) { if (ev.pointerId !== padId) return; padId = null; touch.left = touch.right = touch.up = touch.down = false; knob.style.transform = ''; }
+dpad.addEventListener('pointerdown', ev => { ev.preventDefault(); padId = ev.pointerId; dpad.setPointerCapture(padId); padSet(ev); audio(); });
+dpad.addEventListener('pointermove', ev => { if (ev.pointerId === padId) padSet(ev); });
+dpad.addEventListener('pointerup', padEnd);
+dpad.addEventListener('pointercancel', padEnd);
+for (const b of document.querySelectorAll('.pb[data-a]')) {
+  const a = b.dataset.a;
+  b.addEventListener('pointerdown', ev => { ev.preventDefault(); touch[a] = true; press(a); audio(); });
+  const up = () => { touch[a] = false; };
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+}
+$('padSneak').addEventListener('pointerdown', ev => { ev.preventDefault(); touchSneak = !touchSneak; $('padSneak').classList.toggle('lit', touchSneak); });
+$('padSwap').addEventListener('pointerdown', ev => { ev.preventDefault(); swapRole(); });
+$('pad').addEventListener('contextmenu', ev => ev.preventDefault());
+if (document.fonts && document.fonts.load) document.fonts.load('8px "DotGothic16"').then(() => { for (const W of [G, GW, PV]) if (W) W.bg = null; }).catch(() => {});
+
+// ---------- self tests ----------
+function validateStage(si) {
+  const S = STAGES[si], W = buildStage(si, 7), errs = [], w = W.w, h = W.h;
+  S.map.forEach((row, y) => { if (row.length !== w) errs.push(`row ${y} width ${row.length}`); });
+  for (let x = 0; x < w; x++) if (W.T[x] !== '#' || W.T[(h - 1) * w + x] !== '#') errs.push('border x' + x);
+  for (let y = 0; y < h; y++) if (W.T[y * w] !== '#' || W.T[y * w + w - 1] !== '#') errs.push('border y' + y);
+  W.doors.forEach(d => { d.unl = true; });
+  const seen = new Uint8Array(w * h), st = [];
+  const s0 = Math.floor(S.spawn[0][1]) * w + Math.floor(S.spawn[0][0]);
+  seen[s0] = 1; st.push(s0);
+  while (st.length) {
+    const c = st.pop(), cx = c % w, cy = (c - cx) / w;
+    for (const [dx, dy] of DIR8.slice(0, 4)) { const n = (cy + dy) * w + cx + dx; if (!seen[n] && !pSolid(W, cx + dx, cy + dy)) { seen[n] = 1; st.push(n); } }
+  }
+  const near = (x, y) => DIR8.slice(0, 4).some(([dx, dy]) => seen[(y + dy) * w + x + dx]);
+  S.spawn.forEach(s => { if (!seen[Math.floor(s[1]) * w + Math.floor(s[0])]) errs.push('spawn unreachable'); });
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = W.T[y * w + x]; if ('PTCVKL'.includes(c) && !near(x, y)) errs.push(`${c} ${x},${y} unreachable`); }
+  if (![...W.exits].some(i => seen[i])) errs.push('exit unreachable');
+  if (!W.safe || !W.term || !W.panel) errs.push('missing safe/term/panel');
+  const gOk = (x, y) => !gSolidI(W, y * w + x);
+  const routeCheck = (r, tag) => r.forEach((p, k) => {
+    if (!gOk(p[0], p[1])) errs.push(`${tag} point ${p} solid`);
+    const q = r[(k + 1) % r.length];
+    if ((p[0] !== q[0] || p[1] !== q[1]) && !findPath(W, p[0] + .5, p[1] + .5, q[0] + .5, q[1] + .5).length) errs.push(`${tag} no path ${p}->${q}`);
+  });
+  S.guards.forEach((g, i) => { if (g.r) routeCheck(g.r, 'guard' + i); else if (!gOk(g.x, g.y)) errs.push(`guard${i} on solid`); });
+  S.reinf.forEach((r, i) => routeCheck(r, 'reinf' + i));
+  S.cams.forEach(([x, y, a]) => { if (tileAt(W, x, y) !== '#') errs.push(`cam ${x},${y} not on wall`); const o = camOrigin({ x, y, base: a * DEG }); if (opaqueAt(W, Math.floor(o.x), Math.floor(o.y))) errs.push(`cam ${x},${y} faces a wall`); });
+  W.lasers.forEach(L => L.set.forEach(i => { if (!FLOORS.includes(W.T[i])) errs.push(`laser cell ${i % w},${Math.floor(i / w)} not floor`); }));
+  W.creaky.forEach(i => { if (!FLOORS.includes(W.T[i])) errs.push(`creaky ${i % w},${Math.floor(i / w)} not floor`); });
+  W.talks.forEach((t, i) => { if (!t.guards.length) errs.push(`talk${i} has no guards`); });
+  S.labels.forEach(([n, x, y]) => { if (!FLOORS.includes(tileAt(W, Math.floor(x), Math.floor(y)))) errs.push(`label ${n} on ${tileAt(W, Math.floor(x), Math.floor(y))}`); });
+  return `check stage${si + 1} ${S.name}: ${errs.length ? 'NG ' + errs.join('; ') : 'ok'} (code ${W.code.length} digits, guards ${W.guards.length}, hints ${W.hints.map(x => x.room).join('/')})`;
+}
+function solveTest(si) {
+  const log = [];
+  G = buildStage(si, 4242 + si); G.noDetect = true; G.scripted = true; OWN = [0, 0, 0];
+  const W = G, [dec, lock, hack] = W.ps;
+  const run = n => { for (let i = 0; i < n; i++) { updateGame(); stepFx(W); } };
+  const idle = () => { for (const p of W.ps) p.cur = NONE; };
+  const place = (p, x, y) => {
+    for (const [dx, dy] of DIR8.slice(0, 4)) {
+      const nx = x + dx, ny = y + dy;
+      if (!pSolid(W, nx, ny) && !'DL'.includes(tileAt(W, nx, ny))) { p.x = nx + .5; p.y = ny + .5; p.dir = Math.atan2(-dy, -dx); p.lastTile = -1; return true; }
+    }
+    log.push(`no spot by ${x},${y}`); return false;
+  };
+  const hold = (p, n) => { idle(); p.cur = { ...NONE, act: true }; run(n); p.cur = NONE; run(2); };
+  const tap = (p, a) => { idle(); p.cur = { ...NONE, [a]: true }; run(1); p.cur = NONE; run(1); };
+  idle();
+  for (const d of W.doors.filter(d => d.locked)) { place(lock, d.x, d.y); hold(lock, 130); if (!d.unl) log.push(`door ${d.x},${d.y} stayed locked`); }
+  for (const pc of W.pcs) { place(hack, pc.x, pc.y); hold(hack, 130); if (!pc.read) log.push(`pc ${pc.x},${pc.y} unread`); }
+  place(hack, W.term.x, W.term.y); hold(hack, 190); if (!W.hacked) log.push('terminal');
+  place(hack, W.panel.x, W.panel.y); hold(hack, 160); if (!W.panel.done || W.lasers.some(L => !L.blink && !L.off)) log.push('panel');
+  for (const t of W.talks) {
+    let ok = false;
+    for (let r = 2; r <= 4 && !ok; r++) for (let a = 0; a < 16 && !ok; a++) { const x = Math.floor(t.x + Math.cos(a / 16 * Math.PI * 2) * r), y = Math.floor(t.y + Math.sin(a / 16 * Math.PI * 2) * r); if (!pSolid(W, x, y) && !'DL'.includes(tileAt(W, x, y))) { dec.x = x + .5; dec.y = y + .5; ok = true; } }
+    idle(); run(TALK_NEED + 10);
+    if (!t.hint.found) log.push(`talk ${t.room} not heard (prog ${t.prog})`);
+  }
+  if (W.found !== W.hints.length) log.push(`found ${W.found}/${W.hints.length}`);
+  const L = W.lockers[0];
+  if (L) { place(dec, L.x, L.y); tap(dec, 'act'); if (dec.st !== 'hidden') log.push('hide'); tap(dec, 'act'); if (dec.st !== 'ok') log.push('unhide'); }
+  const rings = W.fxNew.length; dec.cd = 0; tap(dec, 'skill'); run(40); if (W.fxNew.length === rings) log.push('stone made no ring');
+  place(lock, W.safe.x, W.safe.y); tap(lock, 'act'); if (lock.st !== 'dial') log.push('dial did not open');
+  const zero = W.code.every(v => v === 0);
+  tap(lock, 'act');
+  if (!zero && (lock.st !== 'ok' || W.safe.open)) log.push('wrong code accepted');
+  if (!zero) { run(130); tap(lock, 'act'); W.code.forEach(v => { for (let k = 0; k < v; k++) tap(lock, 'up'); tap(lock, 'right'); }); tap(lock, 'act'); }
+  if (!W.safe.open) log.push('safe shut');
+  if (!W.loot || W.loot.holder !== 1) log.push('loot not held');
+  const ex = [...W.exits][0];
+  lock.x = ex % W.w + .5; lock.y = Math.floor(ex / W.w) + .5; lock.lastTile = -1; idle(); run(2);
+  if (W.phase !== 'clear') log.push('no clear (' + W.phase + ')');
+  run(120);
+  if (!W.result) log.push('no result');
+  return `solve stage${si + 1}: ${log.length ? 'NG ' + log.join('; ') : 'ok'} code=${W.code.join('')} alarm=${W.alarm} rank=${W.result && W.result.rank}`;
+}
+function randomRun(si, frames, seed) {
+  G = buildStage(si, seed); G.scripted = true; OWN = [0, 0, 0];
+  const seenSt = new Set(), moved = G.guards.map(() => 0);
+  let err = '', stuck = 0, stuckAt = '';
+  try {
+    for (let i = 0; i < frames && G.phase === 'play'; i++) {
+      if (i % 20 === 0) G.ps.forEach(p => { const c = {}; for (const a of ACTS) c[a] = Math.random() < (a === 'act' ? .3 : a === 'skill' ? .08 : a === 'sneak' ? .3 : .3); p.cur = c; });
+      const before = G.guards.map(g => [g.x, g.y]);
+      updateGame(); stepFx(G);
+      G.guards.forEach((g, k) => {
+        seenSt.add(g.st);
+        const d = k < before.length ? Math.hypot(g.x - before[k][0], g.y - before[k][1]) : 1;
+        if (k < moved.length) moved[k] += d;
+        // a guard that should be walking but has not moved for a while is stuck
+        const walking = (g.st === 'patrol' && g.wait <= 0) || g.st === 'investigate' || g.st === 'return' || g.st === 'chase';
+        g.stuckN = walking && d < 1e-4 ? (g.stuckN || 0) + 1 : 0;
+        if (g.stuckN > stuck) { stuck = g.stuckN; stuckAt = `${g.st}@${g.x.toFixed(1)},${g.y.toFixed(1)}`; }
+      });
+      if (i % 90 === 0) { render(G, [0, 1, 2], (i / 90) % 3); drawMini(G, [0, 1, 2], 0); }
+    }
+  } catch (e) { err = ' ERROR ' + (e && e.stack); }
+  const patrolMoves = G.guards.slice(0, moved.length).map((g, k) => g.k === 'patrol' ? Math.round(moved[k]) : null).filter(v => v !== null);
+  return `random stage${si + 1}:${err || ' ok'} phase=${G.phase} t=${Math.floor(G.time / 60)}s alarm=${G.alarm} lv=${G.level} found=${G.found} guards=${G.guards.length} patrolMoved=[${patrolMoves.join(',')}] maxStuck=${stuck}f ${stuckAt} states=[${[...seenSt].sort().join(',')}]`;
+}
+
+// ---------- boot ----------
+// Hash commands:
+//   #join=1234        open the network lobby and join room 1234 (this is what the invite link uses)
+//   #demo-<stage>-<role>[-<x>-<y>]   skip the title and start a solo heist (for screenshots), e.g. #demo-2-1 or #demo-0-2-19-7
+//   #selftest         map checks, a scripted run through every stage, random-input runs; results at the bottom
+//   #nettest=1234     host room 1234 with random input, start once two guests are in (with #join=1234&bot for the guests)
+const hash = location.hash;
+const jm = hash.match(/^#join=(\d{4})(&bot)?$/);
+const nm = hash.match(/^#nettest=(\d{4})$/);
+const dm = hash.match(/^#demo-(\d)(?:-(\d))?(?:-(\d+)-(\d+))?$/);
+setMode('solo');
+toTitle();
+if (jm) { setMode('net'); openLobby(); el.netCode.value = jm[1]; NET.bot = !!jm[2]; joinRoom(jm[1]); }
+else if (nm) {
+  setMode('net'); openLobby(); NET.bot = true; hostRoom(nm[1]);
+  const wait = setInterval(() => { if (screen === 'lobby' && CL[1] && CL[2]) { clearInterval(wait); startNetGame(selSi); } }, 300);
+}
+else if (dm) {
+  selSi = clamp(+dm[1], 0, STAGES.length - 1); OWN = [0, 0, 0]; CL[0].active = clamp(+(dm[2] || 0), 0, 2); newGame(selSi, 77); enterGame();
+  if (dm[3]) { const p = G.ps[CL[0].active]; p.x = +dm[3] + .5; p.y = +dm[4] + .5; p.grace = 600; }
+}
+if (hash === '#selftest') {
+  noStore = true; W_SOUND = false;
+  const out = [];
+  STAGES.forEach((_, i) => { try { out.push(validateStage(i)); } catch (e) { out.push(`check stage${i + 1}: ERROR ${e.stack}`); } });
+  STAGES.forEach((_, i) => { try { out.push(solveTest(i)); } catch (e) { out.push(`solve stage${i + 1}: ERROR ${e.stack}`); } });
+  STAGES.forEach((_, i) => { for (let k = 0; k < 3; k++) out.push(randomRun(i, 3 * 60 * 60, 100 + i * 10 + k)); });
+  G = null; OWN = [0, 0, 0]; screen = 'title'; noStore = false; W_SOUND = true;
+  const pre = document.createElement('pre'); pre.id = 'selftest'; pre.textContent = out.join('\n'); document.body.append(pre);
+}
+requestAnimationFrame(frame);
+})();
+</script>
