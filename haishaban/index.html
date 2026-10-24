@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}</style>
+<title>配車盤</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=JetBrains+Mono:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: the city map is the board (left); the dispatch ledger sits beside it (right), stacking below on phones. */
+:root {
+  --bg: #E6EBEE;
+  --surface: #F8FAFB;
+  --map: #F1F4F5;
+  --street: #DAE1E6;
+  --block: #E9EEF0;
+  --ink: #142029;
+  --muted: #5A6974;
+  --line: #C6D0D7;
+  --signal: #F2B705;
+  --signal-ink: #1A1400;
+  --good: #1E8A4C;
+  --bad: #C92A2A;
+  --t1: #E8590C;
+  --t2: #0B7F86;
+  --t3: #9C36B5;
+  --f-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F151A; --surface: #172028; --map: #131B21; --street: #1F2B34; --block: #18222A;
+    --ink: #E4EAEE; --muted: #8C9AA5; --line: #2B3843;
+    --signal: #F5C330; --signal-ink: #1A1400; --good: #4CC27F; --bad: #FF6B6B;
+    --t1: #FF8A3D; --t2: #2EC4C4; --t3: #CC7BEA;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F151A; --surface: #172028; --map: #131B21; --street: #1F2B34; --block: #18222A;
+  --ink: #E4EAEE; --muted: #8C9AA5; --line: #2B3843;
+  --signal: #F5C330; --signal-ink: #1A1400; --good: #4CC27F; --bad: #FF6B6B;
+  --t1: #FF8A3D; --t2: #2EC4C4; --t3: #CC7BEA;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 14px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 28px;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; max-width: 1280px; margin: 0 auto 14px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.logo { font-family: var(--f-display); font-size: 26px; letter-spacing: .04em; line-height: 1; }
+.logo span { color: var(--signal); -webkit-text-stroke: 1px var(--ink); }
+.tag { color: var(--muted); font-size: 12px; letter-spacing: .08em; }
+.stages { display: flex; gap: 6px; overflow-x: auto; flex: 1 1 420px; min-width: 0; padding-bottom: 2px; }
+.stg { flex: 0 0 auto; display: grid; grid-template-columns: auto auto; column-gap: 7px; align-items: center; text-align: left;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 5px 10px 5px 7px; cursor: pointer; }
+.stg b { font-family: var(--f-display); font-size: 17px; grid-row: span 2; line-height: 1; width: 1.1em; text-align: center; }
+.stg span { font-size: 12px; font-weight: 500; white-space: nowrap; }
+.stg small { font-size: 11px; color: var(--signal); letter-spacing: .1em; line-height: 1.1; }
+.stg small.none { color: var(--muted); letter-spacing: 0; }
+.stg[aria-current="true"] { border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--signal); }
+.stg:disabled { opacity: .45; cursor: not-allowed; }
+
+/* board */
+.board { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 16px; max-width: 1280px; margin: 0 auto; align-items: start; }
+@media (max-width: 900px) { .board { grid-template-columns: minmax(0, 1fr); } }
+.mapwrap { position: relative; background: var(--map); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.mapbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+.clock { font-family: var(--f-num); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.clock small { font-size: 11px; color: var(--muted); font-weight: 500; margin-left: 6px; font-family: var(--f-body); }
+.hint { color: var(--muted); font-size: 12px; min-width: 0; }
+#map { display: block; width: 100%; height: auto; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.skip { border: 1px solid var(--line); background: var(--bg); border-radius: 5px; padding: 3px 10px; cursor: pointer; font-size: 12px; }
+
+/* svg pieces */
+.road { stroke: var(--street); stroke-width: .05; }
+.road.main { stroke-width: .16; }
+.scale line { stroke: var(--muted); stroke-width: .06; }
+.scale text, .compass text { fill: var(--muted); font-size: .42px; font-family: var(--f-body); }
+.compass path { fill: var(--muted); }
+.node { cursor: pointer; }
+.node .hit { fill: transparent; }
+.node .dot { fill: var(--surface); stroke: var(--ink); stroke-width: .07; }
+.node.on .dot { fill: var(--c); stroke: var(--c); }
+.node .ord { fill: #fff; font-family: var(--f-num); font-weight: 700; font-size: .46px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.node .box { fill: var(--ink); font-family: var(--f-num); font-weight: 700; font-size: .44px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.node .lab { fill: var(--ink); font-size: .42px; font-family: var(--f-num); pointer-events: none; paint-order: stroke; stroke: var(--map); stroke-width: .14px; stroke-linejoin: round; }
+.node .due { fill: var(--bad); font-weight: 700; }
+.node .lab.dim { fill: var(--muted); }
+.node:hover .dot { stroke-width: .13; }
+.node.late .dot { stroke: var(--bad); stroke-width: .16; }
+.node.done .dot { fill: var(--c); opacity: .35; }
+.node .tick { display: none; stroke: var(--good); stroke-width: .14; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.node.done .tick { display: inline; }
+.node.done.late .tick { stroke: var(--bad); }
+.depot { cursor: pointer; }
+.depot rect { fill: var(--ink); }
+.depot text { fill: var(--bg); font-family: var(--f-display); font-size: .6px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.rt { fill: none; stroke: var(--c); stroke-width: .11; stroke-linejoin: round; stroke-linecap: round; opacity: .9; }
+.rt.dim { opacity: .35; }
+.arw { fill: var(--c); }
+.arw.dim { opacity: .35; }
+.ghost { fill: none; stroke: var(--muted); stroke-width: .07; stroke-dasharray: .22 .16; opacity: .9; }
+.truck circle { fill: var(--c); stroke: var(--surface); stroke-width: .1; }
+.truck text { fill: #fff; font-family: var(--f-num); font-weight: 700; font-size: .5px; text-anchor: middle; dominant-baseline: central; }
+
+.tip { position: absolute; z-index: 5; pointer-events: none; background: var(--ink); color: var(--bg); border-radius: 6px; padding: 7px 10px; font-size: 12px; line-height: 1.5; max-width: 220px; box-shadow: 0 4px 14px rgb(0 0 0 / .18); }
+.tip b { font-size: 13px; }
+
+/* panel */
+.panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.eyebrow { font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+h1 { font-family: var(--f-display); font-weight: 400; font-size: 24px; line-height: 1.25; margin: 2px 0 6px; text-wrap: balance; }
+.brief { margin: 0 0 10px; color: var(--ink); }
+.rules { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rules li { font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 1px 7px; background: var(--bg); }
+.rules li b { font-family: var(--f-num); }
+
+.profit { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.profit .lbl { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .08em; }
+.big { font-family: var(--f-display); font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big.neg { color: var(--bad); }
+.meter { position: relative; height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; margin: 10px 0 4px; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ink); border-radius: 4px; transition: width .25s ease; }
+.meter .fill.win { background: var(--signal); }
+.meter i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--muted); }
+.meter i.par { background: var(--signal); width: 3px; }
+.ticks { position: relative; height: 16px; font-size: 10px; color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; letter-spacing: .05em; }
+.ticks span.l { transform: translateX(calc(-100% - 3px)); }
+.ticks span.r { transform: translateX(3px); }
+.vs { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.vs b { color: var(--ink); font-family: var(--f-num); }
+.breakdown { display: grid; gap: 3px; margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); }
+.breakdown div { display: flex; justify-content: space-between; gap: 10px; }
+.breakdown dt { color: var(--muted); }
+.breakdown dt small { font-family: var(--f-num); }
+.breakdown dd.plus { color: var(--good); }
+.breakdown dd { margin: 0; font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+.tabs { display: grid; grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr)); gap: 6px; }
+.tab { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 7px 9px; cursor: pointer; min-width: 0; }
+.tab .nm { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.tab .nm::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.tab .st { font-size: 11px; color: var(--muted); font-family: var(--f-num); line-height: 1.45; }
+.tab .st .bad { color: var(--bad); font-weight: 700; }
+.tab[aria-pressed="true"] { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); background: var(--surface); }
+
+.route { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 330px; overflow-y: auto; }
+.route li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 5px; background: var(--bg); }
+.route li.reload { background: transparent; border: 1px dashed var(--line); }
+.route li.late { box-shadow: inset 3px 0 0 var(--bad); }
+.route .o { font-family: var(--f-num); font-weight: 700; text-align: center; width: 22px; height: 22px; line-height: 22px; border-radius: 50%; background: var(--c); color: #fff; font-size: 12px; }
+.route li.reload .o { background: var(--ink); color: var(--bg); border-radius: 4px; font-family: var(--f-display); font-weight: 400; }
+.route .who { min-width: 0; }
+.route .who b { font-weight: 700; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route .who small { color: var(--muted); font-family: var(--f-num); font-size: 11px; }
+.route .who small .bad { color: var(--bad); font-weight: 700; }
+.route .ops { display: flex; gap: 2px; }
+.route .ops button { width: 26px; height: 26px; border: 1px solid var(--line); background: var(--surface); border-radius: 4px; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; }
+.route .ops button:disabled { opacity: .3; cursor: default; }
+.empty { color: var(--muted); font-size: 13px; padding: 10px 4px 2px; margin: 0; }
+
+.issues { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.issues p { margin: 0; font-size: 12px; color: var(--bad); font-weight: 700; }
+.issues p.ok { color: var(--muted); font-weight: 400; }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 8px 6px; cursor: pointer; font-weight: 500; font-size: 13px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.go { grid-column: 1 / -1; background: var(--signal); color: var(--signal-ink); border-color: var(--signal); font-family: var(--f-display); font-size: 18px; letter-spacing: .1em; padding: 10px; }
+.go:disabled { background: var(--bg); color: var(--muted); border-color: var(--line); font-family: var(--f-body); font-size: 13px; letter-spacing: 0; font-weight: 700; }
+.aux { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.aux label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.aux label.off { opacity: .5; cursor: not-allowed; }
+.savenote { margin: -8px 0 0; font-size: 12px; color: var(--muted); }
+.savenote.bad { color: var(--bad); font-weight: 700; }
+
+details.how { max-width: 1280px; margin: 14px auto 0; color: var(--muted); font-size: 13px; }
+details.how summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+details.how ul { margin: 6px 0 0; padding-left: 1.2em; max-width: 70ch; }
+
+/* result */
+.modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgb(10 15 20 / .55);
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; width: min(420px, 100%); box-shadow: 0 18px 50px rgb(0 0 0 / .3); }
+.sheet h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; margin: 0; }
+.stars { font-size: 40px; letter-spacing: .12em; color: var(--line); line-height: 1.2; margin: 6px 0 2px; }
+.stars .on { color: var(--signal); }
+.sheet .big { font-size: 40px; }
+.sheet p { margin: 6px 0; }
+.sheet .msg { font-weight: 700; }
+.sheet .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 14px; }
+.sheet .acts .go { font-size: 16px; }
+.new { display: inline-block; background: var(--signal); color: var(--signal-ink); font-size: 11px; font-weight: 700; border-radius: 3px; padding: 0 6px; margin-left: 6px; vertical-align: middle; }
+#selftest { white-space: pre-wrap; font-family: var(--f-num); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .meter .fill { transition: none; } }
+</style>
+
+<header class="top">
+  <div class="brand"><span class="logo">配車<span>盤</span></span><span class="tag">配送ルート最適化パズル</span></div>
+  <nav class="stages" id="stages" aria-label="ステージ"></nav>
+</header>
+
+<main class="board">
+  <section class="mapwrap" id="mapwrap">
+    <div class="mapbar">
+      <span class="clock" id="clock">09:00<small>出発前</small></span>
+      <span class="hint" id="hint">店をタップすると、選んでいるトラックの最後に追加</span>
+      <button class="skip" id="skip" hidden>結果へ</button>
+    </div>
+    <svg id="map" viewBox="-0.8 -0.8 21.6 15.6" role="img" aria-label="配達先の地図"></svg>
+    <div class="tip" id="tip" hidden></div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <div class="eyebrow">STAGE <span id="sNo">1</span></div>
+      <h1 id="sName">はじめての配達</h1>
+      <p class="brief" id="sBrief"></p>
+      <ul class="rules" id="sRules"></ul>
+    </div>
+
+    <div class="card">
+      <div class="profit"><span class="lbl">見込み利益</span><span class="big" id="profit">¥0</span></div>
+      <div class="meter" id="meter"><div class="fill" id="meterFill"></div></div>
+      <div class="ticks" id="ticks"></div>
+      <div class="vs"><span>自己ベスト <b id="best">—</b></span></div>
+      <dl class="breakdown">
+        <div><dt>売上</dt><dd id="rev">¥0</dd></div>
+        <div><dt>燃料費 <small id="km">0.0km</small></dt><dd id="fuel">¥0</dd></div>
+        <div><dt>人件費 <small id="laborN"></small></dt><dd id="labor">¥0</dd></div>
+        <div><dt>早く帰って浮いた人件費 <small id="remN"></small></dt><dd id="saved" class="plus">¥0</dd></div>
+        <div><dt>車両費 <small id="usedN"></small></dt><dd id="fixed">¥0</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <div class="tabs" id="tabs"></div>
+      <ol class="route" id="route"></ol>
+      <div class="issues" id="issues"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="bReload">倉庫で積み直し</button>
+      <button class="btn" id="bUndo">元に戻す</button>
+      <button class="btn" id="bClear">この車を空に</button>
+      <button class="btn go" id="bGo">出発する</button>
+    </div>
+    <div class="aux">
+      <label id="ghostLbl"><input type="checkbox" id="ghost"> <span id="ghostTxt">AIのルートを重ねる</span></label>
+      <span id="served"></span>
+    </div>
+    <p class="savenote" id="saveNote">ルートはこのブラウザに自動で保存されます。</p>
+  </aside>
+</main>
+
+<details class="how" id="how">
+  <summary>遊び方とルール</summary>
+  <ul>
+    <li>地図の店をタップすると、選んでいるトラックのルートの最後に入ります。もう一度タップすると外れます。</li>
+    <li>倉庫（倉）をタップするか「倉庫で積み直し」で、倉庫に戻って荷を積み直します（10分）。荷台に乗る量を超えた便は出発できません。</li>
+    <li>燃料は走った距離 1km ごとに ¥50。運転手の人件費は1分 ¥20（時給 ¥1,200）で、帰庫の締め切りまでの分がかかり、早く帰った分は浮きます。トラックを1台使うごとに車両費もかかります。利益 ＝ 売上 − 燃料費 − 人件費 ＋ 浮いた人件費 − 車両費。</li>
+    <li>〆の時刻がある店に遅れて着くと報酬は半額。全車が帰庫の時刻までに倉庫へ戻らないと出発できません。</li>
+    <li>配らない店があってもかまいません。AI配車係の記録の 75% で ★、92% で ★★（クリア）。クリアすると次のステージが開きます。全ステージをクリアすると、エキストラとして ★★★（AI配車係の記録と同じ以上）に挑戦できます。AI配車係のルートは、そのステージで ★★★ を取ると見られます。</li>
+    <li>移動は直線、速さは時速24km、1軒の荷下ろしは5分です。キーボードでは 1〜3 でトラック切り替え、Z で元に戻す。</li>
+  </ul>
+</details>
+
+<div class="modal" id="result" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+    <div class="eyebrow" id="rStage"></div>
+    <h2 id="rTitle">配達完了</h2>
+    <div class="stars" id="rStars"></div>
+    <div class="big" id="rProfit"></div>
+    <p class="msg" id="rMsg"></p>
+    <p id="rDetail"></p>
+    <div class="acts">
+      <button class="btn" id="rRetry">ルートを見直す</button>
+      <button class="btn" id="rGhost">AIのルートを見る</button>
+      <button class="btn go" id="rNext">次のステージへ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* fuel per km; drivers are paid per minute up to the return deadline, and minutes left after returning are saved */
+const START = 9 * 60, SPEED = 0.4, COST_KM = 50, WAGE = 20, SERVICE = 5, RELOAD = 10;
+const RULES = 2; // bump when scoring changes so saved bests are rescored
+const STAR_AT = [0.75, 0.92, 1];
+
+const STAGES = [
+  { id: "s1", par: [[6,3,4,5,7,2,1]], name: "はじめての配達", seed: 7, trucks: 1, cap: 30, n: 7, day: 480, demand: [1, 2], reward: [1200, 1800], truckCost: 2500,
+    brief: "トラック1台で7軒をまわる。燃料は 1km ¥50、人件費は1分 ¥20。早く帰るほど人件費が浮く。いちばん短い道順を探そう。" },
+  { id: "s1b", par: [[2,3,8,5,4,1,7,6]], name: "朝の配達", seed: 13, trucks: 1, cap: 30, n: 8, day: 480, demand: [1, 2], reward: [1200, 1800], truckCost: 2500,
+    brief: "今度は8軒。行ったり来たりせず、地図をぐるっと一周する道順を考えよう。" },
+  { id: "s2", par: [[2,1,0,9,6,0,8,7,4,0,3,5]], name: "積載量の壁", seed: 21, trucks: 1, cap: 8, n: 9, day: 480, demand: [2, 4], reward: [1400, 2400], truckCost: 2500,
+    brief: "荷台は8箱まで。積みきれない分は倉庫に戻って積み直す（10分）。どこで戻るかが腕の見せどころ。" },
+  { id: "s2b", par: [[5,4,0,3,9,0,7,6,1,0,2,8]], name: "荷物が重い日", seed: 33, trucks: 1, cap: 9, n: 9, day: 480, demand: [2, 4], reward: [1400, 2400], truckCost: 2500,
+    brief: "荷台は9箱まで。倉庫の近くを通るついでに積み直すと、むだな距離が減る。" },
+  { id: "s3", par: [[2,7,13,9,14,1,0,11,4,10,8,5],[]], name: "2台で分担", seed: 5, trucks: 2, cap: 14, n: 14, day: 200, demand: [1, 4], reward: [1200, 2400], truckCost: 2500,
+    brief: "12:20 までに全車が倉庫へ戻ること。1台で回りきるか、2台で手分けするか。車両費とのかね合いを考えよう。" },
+  { id: "s3b", par: [[3,6,2,7,12,0,8,5],[11,10,4,9,13,1]], name: "2台目の出番", seed: 17, trucks: 2, cap: 14, n: 13, day: 160, demand: [1, 4], reward: [1200, 2400], truckCost: 2500,
+    brief: "11:40 までに全車が倉庫へ戻ること。1台では回りきれない。地図を東西や南北に分けて、2台に受け持たせよう。" },
+  { id: "s4", par: [[7,3,6,2,8],[9,1,13,14,11,0,12,5,4,10]], name: "時間指定あり", seed: 42, trucks: 2, cap: 14, n: 14, day: 300, demand: [1, 4], reward: [1200, 2400], truckCost: 2500, dueP: 0.4,
+    brief: "〆の時刻がある店は、その時刻までに届ける。遅れると報酬は半額になる。" },
+  { id: "s5", par: [[12,2,6,4,13,7,0,15,9,10,8,3],[]], name: "断る勇気", seed: 88, trucks: 2, cap: 14, n: 15, far: 4, day: 300, demand: [1, 4], reward: [1200, 2400], truckCost: 2500, dueP: 0.2,
+    brief: "遠くて安い注文がまぎれている。配らないほうが儲かる店もある。" },
+  { id: "s6", par: [[1,6,2,5,3,17,0,13,8,4,20,10,12],[18,7,19,15,9,14,16],[]], name: "年末の繁忙日", seed: 2026, trucks: 3, cap: 16, n: 22, far: 3, day: 270, demand: [1, 5], reward: [1200, 2800], truckCost: 2500, dueP: 0.3,
+    brief: "3台で22軒。積載、時間指定、距離、取捨選択。全部を考えて AI配車係に挑もう。" },
+];
+
+const NAMES = ["パン屋こむぎ", "花屋ミモザ", "八百屋まるやま", "本と珈琲", "喫茶ポプラ", "さくら薬局", "酒店かどや", "文具のいとう",
+  "豆腐の松本", "茶舗みどり", "古書きつね", "金物たなか", "米の大村", "洋菓子リラ", "雑貨トロワ", "精肉はやし",
+  "鮮魚うおせい", "眼鏡のミヤケ", "時計の白井", "写真館ひかり", "銭湯ことぶき", "定食やまだ", "そば処一休", "画材ノート",
+  "クリーニング泉", "ふとんの森", "おもちゃ箱", "陶器ろくろ"];
+
+/* ---------- model ---------- */
+function rng(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function buildStage(def, idx) {
+  const R = rng(def.seed);
+  const depot = { x: 7 + R() * 6, y: 5 + R() * 4 };
+  const pts = [];
+  const ok = p => dist(p, depot) >= 2.2 && pts.every(q => dist(p, q) >= (q.far || p.far ? 3.6 : 1.9));
+  let g = 0;
+  const farN = def.far || 0;
+  while (pts.length < farN && g++ < 8000) {
+    const e = Math.floor(R() * 4), u = R(), v = R();
+    const p = e === 0 ? { x: 0.6 + v * 1.4, y: 0.6 + u * 12.8 }
+      : e === 1 ? { x: 18 + v * 1.4, y: 0.6 + u * 12.8 }
+      : e === 2 ? { x: 0.6 + u * 18.8, y: 0.6 + v * 1.4 }
+      : { x: 0.6 + u * 18.8, y: 12 + v * 1.4 };
+    p.far = true;
+    if (ok(p) && dist(p, depot) >= 8.5) pts.push(p);
+  }
+  while (pts.length < def.n && g++ < 60000) {
+    const p = { x: 0.8 + R() * 18.4, y: 0.8 + R() * 12.4 };
+    if (ok(p)) pts.push(p);
+  }
+  for (let i = pts.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+  const names = NAMES.slice();
+  for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
+
+  const nodes = [{ id: 0, x: depot.x, y: depot.y, name: "倉庫", demand: 0, reward: 0, due: null }];
+  pts.forEach((p, i) => {
+    const dm = def.demand[0] + Math.floor(R() * (def.demand[1] - def.demand[0] + 1));
+    const rw = p.far ? 200 + Math.floor(R() * 4) * 100
+      : Math.round((def.reward[0] + R() * (def.reward[1] - def.reward[0])) / 100) * 100;
+    nodes.push({ id: i + 1, x: p.x, y: p.y, name: names[i], demand: p.far ? Math.min(dm, 2) : dm, reward: rw, due: null, far: !!p.far });
+  });
+  const D = nodes.map(a => nodes.map(b => dist(a, b)));
+  if (def.dueP) {
+    for (const c of nodes) {
+      if (c.id === 0 || c.far) continue;
+      if (R() < def.dueP) {
+        const due = Math.ceil((D[0][c.id] / SPEED + 10 + R() * 80) / 30) * 30;
+        if (due <= def.day - 30) c.due = due;
+      }
+    }
+  }
+  return Object.assign({}, def, { idx, nodes, D });
+}
+
+/* routes: one array per truck, customer ids in order, 0 = go back to the depot and reload */
+function evaluate(st, routes, detail) {
+  const N = st.nodes, D = st.D;
+  let rev = 0, km = 0, used = 0, over = 0, overtime = 0, late = 0, served = 0, savedMin = 0;
+  const trucks = [];
+  for (let k = 0; k < routes.length; k++) {
+    const r = routes[k], L = r.length;
+    const trips = [0];
+    let has = false;
+    for (let i = 0; i < L; i++) {
+      if (r[i] === 0) trips.push(0);
+      else { trips[trips.length - 1] += N[r[i]].demand; has = true; }
+    }
+    if (!has) { if (detail) trucks.push({ km: 0, end: 0, stops: r.map(() => ({ id: 0, skip: true, load: 0 })), segs: [], trips, used: false, maxLoad: 0 }); continue; }
+    used++;
+    let maxLoad = 0;
+    for (const tl of trips) { if (tl > st.cap) over += tl - st.cap; if (tl > maxLoad) maxLoad = tl; }
+    let t = 0, prev = 0, kk = 0, trip = 0;
+    const stops = detail ? [] : null, segs = detail ? [] : null;
+    for (let i = 0; i < L; i++) {
+      const id = r[i];
+      if (id === 0) {
+        trip++;
+        if (prev === 0 || i === L - 1) { if (detail) stops.push({ id: 0, skip: true, load: trips[trip] }); continue; }
+      }
+      const d = D[prev][id], t0 = t;
+      t += d / SPEED; kk += d;
+      if (detail) segs.push({ a: prev, b: id, t0, t1: t });
+      if (id === 0) {
+        if (detail) stops.push({ id: 0, arr: t, dep: t + RELOAD, load: trips[trip] });
+        t += RELOAD;
+      } else {
+        const n = N[id];
+        const lt = n.due != null && t > n.due + 1e-9;
+        rev += lt ? n.reward / 2 : n.reward;
+        if (lt) late++;
+        served++;
+        if (detail) stops.push({ id, arr: t, dep: t + SERVICE, late: lt, trip });
+        t += SERVICE;
+      }
+      prev = id;
+    }
+    const d = D[prev][0];
+    if (detail) segs.push({ a: prev, b: 0, t0: t, t1: t + d / SPEED });
+    t += d / SPEED; kk += d;
+    km += kk;
+    if (t > st.day + 1e-9) overtime += t - st.day;
+    savedMin += Math.max(0, st.day - t);
+    if (detail) trucks.push({ km: kk, end: t, stops, segs, trips, used: true, maxLoad, rem: st.day - t });
+  }
+  const fuel = Math.round(km * COST_KM), fixed = used * st.truckCost;
+  const labor = used * st.day * WAGE, saved = Math.round(savedMin * WAGE);
+  rev = Math.round(rev);
+  return { rev, fuel, labor, saved, savedMin, fixed, profit: rev - fuel - labor + saved - fixed, km, used, over, overtime, late, served,
+    valid: over === 0 && overtime < 1e-9, trucks };
+}
+
+function clean(r) {
+  const out = [];
+  for (const id of r) { if (id === 0 && (out.length === 0 || out[out.length - 1] === 0)) continue; out.push(id); }
+  while (out.length && out[out.length - 1] === 0) out.pop();
+  return out;
+}
+
+function withReloads(st, r) {
+  const out = []; let l = 0;
+  for (const id of r) {
+    const d = st.nodes[id].demand;
+    if (l + d > st.cap && l > 0) { out.push(0); l = 0; }
+    out.push(id); l += d;
+  }
+  return out;
+}
+
+/* simulated annealing over routes; customers left out of every route are simply not delivered */
+function solve(st, seed, mult) {
+  let best = { profit: 0, routes: Array.from({ length: st.trucks }, () => []) };
+  for (let kk = 1; kk <= st.trucks; kk++) {
+    const res = solveK(Object.assign({}, st, { trucks: kk }), seed + kk * 101, Math.round((20000 + (st.nodes.length - 1) * 3500) * (mult || 1)), 2);
+    if (res.profit > best.profit) best = { profit: res.profit, routes: res.routes.concat(Array.from({ length: st.trucks - kk }, () => [])), k: kk };
+  }
+  return best;
+}
+function solveK(st, seed, itersPer, restarts) {
+  const R = rng(seed);
+  const K = st.trucks, n = st.nodes.length - 1, dep = st.nodes[0];
+  const iters = itersPer || (20000 + n * 3500);
+  const runs = restarts || 3;
+  const objective = e => e.profit - e.over * 3000 - e.overtime * 120;
+  let best = { profit: 0, routes: Array.from({ length: K }, () => []) };
+  for (let run = 0; run < runs; run++) {
+    const ids = [];
+    for (let i = 1; i <= n; i++) ids.push(i);
+    const off = R() * Math.PI * 2;
+    ids.sort((a, b) => {
+      const A = (Math.atan2(st.nodes[a].y - dep.y, st.nodes[a].x - dep.x) + off) % (Math.PI * 2);
+      const B = (Math.atan2(st.nodes[b].y - dep.y, st.nodes[b].x - dep.x) + off) % (Math.PI * 2);
+      return A - B;
+    });
+    let cur = Array.from({ length: K }, () => []);
+    ids.forEach((id, i) => cur[Math.min(K - 1, Math.floor(i * K / n))].push(id));
+    cur = cur.map(r => withReloads(st, r));
+    let ce = evaluate(st, cur, false), cf = objective(ce);
+    if (ce.valid && ce.profit > best.profit) best = { profit: ce.profit, routes: cur.map(r => r.slice()) };
+    const T0 = 1500, T1 = 2;
+    for (let it = 0; it < iters; it++) {
+      const T = T0 * Math.pow(T1 / T0, it / iters);
+      const nx = cur.map(r => r.slice());
+      const m = R();
+      if (m < 0.45) {
+        const id = 1 + Math.floor(R() * n);
+        for (const r of nx) { const p = r.indexOf(id); if (p >= 0) { r.splice(p, 1); break; } }
+        if (R() > 0.1) { const k = Math.floor(R() * K); nx[k].splice(Math.floor(R() * (nx[k].length + 1)), 0, id); }
+      } else if (m < 0.7) {
+        const r = nx[Math.floor(R() * K)];
+        if (r.length >= 2) {
+          let i = Math.floor(R() * r.length), j = Math.floor(R() * r.length);
+          if (i > j) [i, j] = [j, i];
+          const seg = r.slice(i, j + 1).reverse();
+          r.splice(i, seg.length, ...seg);
+        }
+      } else if (m < 0.85) {
+        const k1 = Math.floor(R() * K), k2 = Math.floor(R() * K);
+        if (nx[k1].length && nx[k2].length) {
+          const i = Math.floor(R() * nx[k1].length), j = Math.floor(R() * nx[k2].length);
+          const t = nx[k1][i]; nx[k1][i] = nx[k2][j]; nx[k2][j] = t;
+        }
+      } else {
+        const r = nx[Math.floor(R() * K)];
+        if (R() < 0.5) r.splice(Math.floor(R() * (r.length + 1)), 0, 0);
+        else { const zs = []; r.forEach((v, i) => { if (v === 0) zs.push(i); }); if (zs.length) r.splice(zs[Math.floor(R() * zs.length)], 1); }
+      }
+      for (let k = 0; k < K; k++) nx[k] = clean(nx[k]);
+      const e = evaluate(st, nx, false), f = objective(e);
+      if (f >= cf || R() < Math.exp((f - cf) / T)) {
+        cur = nx; cf = f;
+        if (e.valid && e.profit > best.profit) best = { profit: e.profit, routes: nx.map(r => r.slice()) };
+      }
+    }
+  }
+  return best;
+}
+
+/* ---------- state ---------- */
+const $ = id => document.getElementById(id);
+const yen = v => (v < 0 ? "−¥" : "¥") + Math.abs(Math.round(v)).toLocaleString("ja-JP");
+const clock = t => { const m = Math.round(START + t); return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+const kyen = v => "¥" + (v / 1000).toFixed(1) + "k";
+const PAR_CACHE = {};
+const STORE_KEY = "haishaban.v2", OLD_KEY = "haishaban.v1";
+const OLD_IDS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+
+const state = { stage: 0, st: null, routes: [], sel: 0, undo: [], par: null, ghost: false, playing: false, raf: 0, tried: false };
+/* keyed by stage id. best: finished runs, work: routes being built (autosaved), open: unlocked stages, last: stage open last time */
+let save = { best: {}, work: {}, open: {}, last: null };
+const sid = i => STAGES[i].id;
+function migrateV1(old) {
+  const map = obj => { const o = {}; for (const k in obj || {}) if (OLD_IDS[+k]) o[OLD_IDS[+k]] = obj[k]; return o; };
+  const v = { best: map(old.best), work: map(old.work), open: {}, last: Number.isInteger(old.last) ? OLD_IDS[old.last] || null : null };
+  for (let k = 0; k <= (old.unlocked || 0) && k < OLD_IDS.length; k++) v.open[OLD_IDS[k]] = true;
+  // practice stages added later open together with the stage that follows them
+  STAGES.forEach((s, i) => { if (!OLD_IDS.includes(s.id) && STAGES[i + 1] && v.open[STAGES[i + 1].id]) v.open[s.id] = true; });
+  return v;
+}
+try {
+  const raw = localStorage.getItem(STORE_KEY), old = localStorage.getItem(OLD_KEY);
+  if (raw) save = Object.assign(save, JSON.parse(raw));
+  else if (old) save = Object.assign(save, migrateV1(JSON.parse(old)));
+} catch (e) {}
+for (const k of ["best", "work", "open"]) if (!save[k] || typeof save[k] !== "object") save[k] = {};
+function rescoreSaves() {
+  if (save.rules === RULES) return;
+  STAGES.forEach((d, i) => {
+    const b = save.best[d.id];
+    if (!b || !Array.isArray(b.routes) || !d.par) return;
+    const st = buildStage(d, i), e = evaluate(st, b.routes, false);
+    if (!e.valid) return;
+    b.profit = e.profit;
+    b.stars = Math.max(b.stars || 0, starsFor(e.profit, evaluate(st, d.par, false).profit));
+  });
+  save.rules = RULES;
+  persist();
+}
+function isOpen(i) { return i === 0 || !!save.open[sid(i)]; }
+let canSave = true;
+function persist() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); canSave = true; } catch (e) { canSave = false; }
+  return canSave;
+}
+function routesFor(i) { const k = sid(i); return save.work[k] || (save.best[k] && save.best[k].routes) || null; }
+function saveNote(text) {
+  $("saveNote").textContent = canSave ? text : "このブラウザでは保存できません（プライベートウィンドウなど）。閉じるとルートは消えます。";
+  $("saveNote").classList.toggle("bad", !canSave);
+}
+function saveWork() {
+  save.work[sid(state.stage)] = state.routes.map(r => r.slice());
+  save.last = sid(state.stage);
+  persist();
+  const now = new Date();
+  saveNote(`自動保存しました（${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}）`);
+}
+
+/* ★★ clears a stage; ★★★ (matching the AI) is an extra goal shown only after every stage is cleared */
+const CLEAR = 2;
+function extraOpen() { return STAGES.every(s => save.best[s.id] && save.best[s.id].stars >= CLEAR); }
+function maxStars() { return extraOpen() ? 3 : CLEAR; }
+function ghostAllowed() { const b = save.best[sid(state.stage)]; return !!state.par && extraOpen() && !!b && b.stars >= 3; }
+function starsFor(profit, par) {
+  if (!par || profit <= 0) return 0;
+  const r = profit / par;
+  return r >= STAR_AT[2] ? 3 : r >= STAR_AT[1] ? 2 : r >= STAR_AT[0] ? 1 : 0;
+}
+
+function loadStage(i, routes) {
+  cancelAnimationFrame(state.raf);
+  state.playing = false;
+  state.stage = i;
+  state.st = buildStage(STAGES[i], i);
+  state.routes = Array.from({ length: state.st.trucks }, (_, k) => (routes && routes[k] ? routes[k].slice() : []));
+  state.sel = 0; state.undo = []; state.ghost = false; state.tried = !!save.best[sid(i)];
+  const def = STAGES[i];
+  if (!PAR_CACHE[i] && def.par) PAR_CACHE[i] = { profit: evaluate(state.st, def.par, false).profit, routes: def.par };
+  state.par = PAR_CACHE[i] || null;
+  $("ghost").checked = false;
+  $("result").hidden = true;
+  save.last = sid(i);
+  save.open[sid(i)] = true;
+  persist();
+  saveNote(state.routes.some(r => r.length) ? "前回の続きから再開しました。ルートは自動で保存されます。" : "ルートはこのブラウザに自動で保存されます。");
+  renderAll();
+  if (!state.par) {
+    setTimeout(() => {
+      const res = solve(state.st, 1000 + i);
+      PAR_CACHE[i] = res;
+      if (state.stage === i) { state.par = res; renderAll(); }
+    }, 30);
+  }
+}
+
+function edit(fn) {
+  if (state.playing) return;
+  state.undo.push(JSON.stringify(state.routes));
+  if (state.undo.length > 200) state.undo.shift();
+  fn();
+  state.routes = state.routes.map(r => {
+    const out = [];
+    for (const id of r) { if (id === 0 && (out.length === 0 || out[out.length - 1] === 0)) continue; out.push(id); }
+    return out;
+  });
+  saveWork();
+  renderAll();
+}
+
+function where(id) {
+  for (let k = 0; k < state.routes.length; k++) { const p = state.routes[k].indexOf(id); if (p >= 0) return [k, p]; }
+  return null;
+}
+
+function tapNode(id) {
+  if (id === 0) { addReload(); return; }
+  edit(() => {
+    const w = where(id);
+    if (w) {
+      state.routes[w[0]].splice(w[1], 1);
+      if (w[0] === state.sel) return;
+    }
+    state.routes[state.sel].push(id);
+  });
+}
+function addReload() {
+  const r = state.routes[state.sel];
+  if (!r.length || r[r.length - 1] === 0) return;
+  edit(() => state.routes[state.sel].push(0));
+}
+
+/* ---------- render ---------- */
+function renderStages() {
+  $("stages").innerHTML = STAGES.map((s, i) => {
+    const b = save.best[s.id];
+    const locked = !isOpen(i);
+    const mx = maxStars(), got = b ? Math.min(b.stars, mx) : 0;
+    const st = b ? "★".repeat(got) + "☆".repeat(mx - got) + (mx === CLEAR && got >= CLEAR ? " クリア" : "") : "";
+    return `<button class="stg" data-stage="${i}" ${locked ? "disabled" : ""} aria-current="${i === state.stage}">
+      <b>${i + 1}</b><span>${s.name}</span><small class="${b ? "" : "none"}">${locked ? "未開放" : b ? st : "未挑戦"}</small></button>`;
+  }).join("");
+}
+
+function renderMap(ev) {
+  const st = state.st, N = st.nodes;
+  const tc = k => `var(--t${k + 1})`;
+  let s = "";
+  // streets: minor every 1km, a few main roads for orientation
+  for (let x = 0; x <= 20; x++) s += `<line class="road${x % 5 === 0 ? " main" : ""}" x1="${x}" y1="0" x2="${x}" y2="14"/>`;
+  for (let y = 0; y <= 14; y++) s += `<line class="road${y % 7 === 0 ? " main" : ""}" x1="0" y1="${y}" x2="20" y2="${y}"/>`;
+  s += `<g class="scale"><line x1="0.4" y1="14.35" x2="2.4" y2="14.35"/><line x1="0.4" y1="14.2" x2="0.4" y2="14.5"/><line x1="2.4" y1="14.2" x2="2.4" y2="14.5"/><text x="2.6" y="14.5">2 km</text></g>`;
+  s += `<g class="compass"><path d="M19.5 13.2 L19.8 14.2 L19.5 14 L19.2 14.2Z"/><text x="19.5" y="13.05" text-anchor="middle">N</text></g>`;
+
+  if (state.ghost && state.par) {
+    for (const r of state.par.routes) {
+      if (!r.some(v => v !== 0)) continue;
+      const pts = [0, ...r, 0].map(id => `${N[id].x.toFixed(2)},${N[id].y.toFixed(2)}`).join(" ");
+      s += `<polyline class="ghost" points="${pts}"/>`;
+    }
+  }
+  ev.trucks.forEach((tr, k) => {
+    if (!tr.used) return;
+    const dim = k !== state.sel && st.trucks > 1 ? " dim" : "";
+    const pts = [0, ...tr.segs.map(g => g.b)].map(id => `${N[id].x.toFixed(2)},${N[id].y.toFixed(2)}`).join(" ");
+    s += `<polyline class="rt${dim}" style="--c:${tc(k)}" points="${pts}"/>`;
+    for (const g of tr.segs) {
+      const a = N[g.a], b = N[g.b], len = dist(a, b);
+      if (len < 1.2) continue;
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      s += `<path class="arw${dim}" style="--c:${tc(k)}" d="M0.22 0 L-0.18 -0.17 L-0.18 0.17Z" transform="translate(${mx.toFixed(2)} ${my.toFixed(2)}) rotate(${ang.toFixed(1)})"/>`;
+    }
+  });
+
+  for (let id = 1; id < N.length; id++) {
+    const n = N[id], w = where(id);
+    let cls = "node", ord = "", style = "";
+    if (w) {
+      cls += " on"; style = `style="--c:${tc(w[0])}"`;
+      const stop = ev.trucks[w[0]].stops[w[1]];
+      ord = String(state.routes[w[0]].slice(0, w[1] + 1).filter(v => v !== 0).length);
+      if (stop && stop.late) cls += " late";
+    }
+    const lx = n.x + 0.58, flip = n.x > 17.4;
+    const anchor = flip ? "end" : "start", tx = flip ? n.x - 0.58 : lx;
+    const lab1 = `${n.demand}箱 ${kyen(n.reward)}`;
+    const lab2 = n.due != null ? `〆${clock(n.due)}` : "";
+    s += `<g class="${cls}" data-node="${id}" ${style}>
+      <circle class="hit" cx="${n.x}" cy="${n.y}" r="0.85"/>
+      <circle class="dot" cx="${n.x}" cy="${n.y}" r="0.42"/>
+      ${w ? `<text class="ord" x="${n.x}" y="${n.y + 0.02}">${ord}</text>` : `<text class="box" x="${n.x}" y="${n.y + 0.02}">${n.demand}</text>`}
+      <path class="tick" d="M${n.x - 0.62} ${n.y - 0.5} l0.16 0.16 l0.3 -0.32"/>
+      <text class="lab${w ? " dim" : ""}" x="${tx}" y="${n.y - 0.02}" text-anchor="${anchor}">${lab1}</text>
+      ${lab2 ? `<text class="lab due" x="${tx}" y="${n.y + 0.48}" text-anchor="${anchor}">${lab2}</text>` : ""}
+    </g>`;
+  }
+  const d = N[0];
+  s += `<g class="depot" data-node="0"><rect x="${d.x - 0.5}" y="${d.y - 0.5}" width="1" height="1" rx="0.14"/><text x="${d.x}" y="${d.y + 0.03}">倉</text></g>`;
+  s += `<g id="sim"></g>`;
+  $("map").innerHTML = s;
+}
+
+function renderPanel(ev) {
+  const st = state.st, N = st.nodes;
+  $("sNo").textContent = state.stage + 1;
+  $("sName").textContent = st.name;
+  $("sBrief").textContent = st.brief;
+  const custN = N.length - 1, boxes = N.reduce((a, n) => a + n.demand, 0);
+  $("sRules").innerHTML = [
+    `トラック <b>${st.trucks}</b>台`, `荷台 <b>${st.cap}</b>箱`, `帰庫 <b>${clock(st.day)}</b>まで`,
+    `注文 <b>${custN}</b>軒・<b>${boxes}</b>箱`, `燃料 <b>¥${COST_KM}</b>/km`, `人件費 <b>¥${WAGE}</b>/分`, `車両費 <b>${yen(st.truckCost)}</b>/台`,
+  ].map(t => `<li>${t}</li>`).join("");
+
+  const pf = $("profit");
+  pf.textContent = yen(ev.profit);
+  pf.classList.toggle("neg", ev.profit < 0);
+  $("rev").textContent = yen(ev.rev);
+  $("fuel").textContent = "−" + yen(ev.fuel);
+  $("labor").textContent = "−" + yen(ev.labor);
+  $("laborN").textContent = ev.used ? `${ev.used}台 × ${clock(st.day)}まで` : "";
+  $("saved").textContent = "+" + yen(ev.saved);
+  $("remN").textContent = ev.used ? `残り計 ${Math.floor(ev.savedMin)}分` : "";
+  $("km").textContent = ev.km.toFixed(1) + "km";
+  $("fixed").textContent = "−" + yen(ev.fixed);
+  $("usedN").textContent = ev.used ? `${ev.used}台` : "";
+
+  const par = state.par ? state.par.profit : 0;
+  const scaleMax = 1.12;
+  const b = save.best[sid(state.stage)];
+  $("best").textContent = b ? yen(b.profit) : "—";
+  const fill = $("meterFill");
+  const ratio = par > 0 ? Math.max(0, ev.profit) / par : 0;
+  fill.style.width = Math.min(100, ratio / scaleMax * 100) + "%";
+  const mx = maxStars();
+  fill.classList.toggle("win", ratio >= STAR_AT[mx - 1]);
+  $("meter").querySelectorAll("i").forEach(x => x.remove());
+  $("ticks").innerHTML = "";
+  if (par > 0) {
+    STAR_AT.slice(0, mx).forEach((v, i) => {
+      const left = v / scaleMax * 100;
+      const goal = i === mx - 1;
+      const side = mx === 3 ? (i === 1 ? "l" : i === 2 ? "r" : "") : "";
+      $("meter").insertAdjacentHTML("beforeend", `<i class="${goal ? "par" : ""}" style="left:${left}%"></i>`);
+      $("ticks").insertAdjacentHTML("beforeend", `<span class="${side}" style="left:${left}%">${"★".repeat(i + 1)}${i === CLEAR - 1 && mx === CLEAR ? " クリア" : ""}</span>`);
+    });
+  }
+
+  // truck tabs
+  const tabs = $("tabs");
+  tabs.style.setProperty("--n", st.trucks);
+  tabs.innerHTML = ev.trucks.map((tr, k) => {
+    const lateBack = tr.end > st.day + 1e-9;
+    const overLoad = tr.maxLoad > st.cap;
+    // the trip currently being loaded (resets after a reload); an overloaded earlier trip is named instead
+    const badTrip = tr.trips.findIndex(l => l > st.cap);
+    const loadTxt = badTrip >= 0 ? `${badTrip + 1}便目 ${tr.trips[badTrip]}/${st.cap}箱` : `${tr.trips.length}便目 ${tr.trips[tr.trips.length - 1]}/${st.cap}箱`;
+    const info = tr.used
+      ? `${tr.km.toFixed(1)}km · <span class="${overLoad ? "bad" : ""}">${loadTxt}</span><br><span class="${lateBack ? "bad" : ""}">帰庫 ${clock(tr.end)} · ${lateBack ? `${Math.ceil(-tr.rem)}分超過` : `残り${Math.floor(tr.rem)}分`}</span>`
+      : "未使用<br>&nbsp;";
+    return `<button class="tab" data-truck="${k}" style="--c:var(--t${k + 1})" aria-pressed="${k === state.sel}">
+      <span class="nm">${k + 1}号車</span><span class="st">${info}</span></button>`;
+  }).join("");
+
+  // route list for the selected truck
+  const r = state.routes[state.sel], tr = ev.trucks[state.sel];
+  if (!r.length) {
+    $("route").innerHTML = `<li class="empty" style="background:none">まだ空です。地図の店をタップして、${state.sel + 1}号車の配達順を決めよう。</li>`;
+  } else {
+    let ordNo = 0;
+    $("route").innerHTML = r.map((id, i) => {
+      const stop = tr.stops[i] || {};
+      const ops = `<span class="ops">
+        <button data-op="up" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="ひとつ前へ">▲</button>
+        <button data-op="down" data-i="${i}" ${i === r.length - 1 ? "disabled" : ""} aria-label="ひとつ後へ">▼</button>
+        <button data-op="del" data-i="${i}" aria-label="外す">✕</button></span>`;
+      if (id === 0) {
+        const loadTxt = `次の便 ${stop.load}/${st.cap}箱`;
+        const t = stop.skip ? "この後に店を追加" : `${clock(stop.arr)}着 → ${clock(stop.dep)}発`;
+        return `<li class="reload" style="--c:var(--t${state.sel + 1})"><span class="o">倉</span>
+          <span class="who"><b>倉庫で積み直し</b><small>${t} · <span class="${stop.load > st.cap ? "bad" : ""}">${loadTxt}</span></small></span>${ops}</li>`;
+      }
+      ordNo++;
+      const n = N[id];
+      const dueTxt = n.due != null ? ` · 〆${clock(n.due)}` : "";
+      const lateTxt = stop.late ? ` <span class="bad">遅れ −${yen(n.reward / 2)}</span>` : "";
+      return `<li class="${stop.late ? "late" : ""}" style="--c:var(--t${state.sel + 1})"><span class="o">${ordNo}</span>
+        <span class="who"><b>${n.name}</b><small>${stop.arr != null ? clock(stop.arr) + "着" : ""} · ${n.demand}箱 · ${yen(n.reward)}${dueTxt}${lateTxt}</small></span>${ops}</li>`;
+    }).join("");
+  }
+
+  // problems
+  const issues = [];
+  ev.trucks.forEach((t, k) => {
+    if (!t.used) return;
+    t.trips.forEach((tl, j) => { if (tl > st.cap) issues.push(`${k + 1}号車の${j + 1}便目が積みすぎ（${tl}/${st.cap}箱）。途中で倉庫に戻ろう。`); });
+    if (t.end > st.day + 1e-9) issues.push(`${k + 1}号車の帰庫が ${clock(t.end)}。${clock(st.day)} までに戻れるよう店を減らすか、他の車に回そう。`);
+  });
+  if (!issues.length) {
+    if (ev.late) issues.push({ ok: true, t: `遅れて着く店が ${ev.late}軒（報酬は半額）。` });
+    else if (ev.used) issues.push({ ok: true, t: "出発できます。" });
+  }
+  $("issues").innerHTML = issues.map(x => typeof x === "string" ? `<p>${x}</p>` : `<p class="ok">${x.t}</p>`).join("");
+
+  const canGo = ev.valid && ev.used > 0 && !!state.par && !state.playing;
+  const go = $("bGo");
+  go.disabled = !canGo;
+  go.textContent = !state.par ? "AI配車係が計算中…" : !ev.used ? "ルートを組むと出発できます" : !ev.valid ? "直すところがあります" : "出発する";
+  $("bUndo").disabled = !state.undo.length || state.playing;
+  $("bClear").disabled = !r.length || state.playing;
+  $("bReload").disabled = !r.length || r[r.length - 1] === 0 || state.playing;
+  // the AI's route is the answer to ★★★, so it opens only after this stage's ★★★ (extra mode)
+  const canGhost = ghostAllowed();
+  if (!canGhost && state.ghost) { state.ghost = false; $("ghost").checked = false; }
+  $("ghost").disabled = !canGhost;
+  $("ghostLbl").hidden = !extraOpen();
+  $("ghostLbl").classList.toggle("off", !canGhost);
+  $("ghostTxt").textContent = canGhost ? "AIのルートを重ねる" : "AIのルート（このステージで ★★★ を取ると見られます）";
+  $("served").textContent = `配達 ${ev.served}/${custN}軒`;
+  $("hint").textContent = state.playing ? "配達中…" : `店をタップすると ${state.sel + 1}号車の最後に追加。倉をタップで積み直し。`;
+}
+
+function renderAll() {
+  const ev = evaluate(state.st, state.routes, true);
+  renderStages();
+  renderMap(ev);
+  renderPanel(ev);
+  if (!state.playing) { $("clock").innerHTML = `09:00<small>出発前</small>`; $("skip").hidden = true; }
+}
+
+/* ---------- playback ---------- */
+let simEv = null, simMax = 0, simDur = 0, simStart = 0;
+function go() {
+  const ev = evaluate(state.st, state.routes, true);
+  if (!ev.valid || !ev.used || !state.par) return;
+  state.playing = true;
+  renderAll();
+  simEv = ev;
+  simMax = Math.max(...ev.trucks.map(t => t.end));
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  simDur = reduce ? 900 : Math.min(9000, Math.max(3500, simMax * 15));
+  simStart = performance.now();
+  $("skip").hidden = false;
+  state.raf = requestAnimationFrame(frame);
+}
+function frame(now) {
+  const p = Math.min(1, (now - simStart) / simDur);
+  drawSim(p * simMax);
+  if (p < 1 && state.playing) state.raf = requestAnimationFrame(frame);
+  else if (state.playing) finish();
+}
+function drawSim(T) {
+  const N = state.st.nodes;
+  $("clock").innerHTML = `${clock(T)}<small>配達中</small>`;
+  let s = "";
+  simEv.trucks.forEach((tr, k) => {
+    if (!tr.used) return;
+    let x = N[0].x, y = N[0].y;
+    if (T < tr.end) {
+      for (const g of tr.segs) {
+        if (T >= g.t0 && T <= g.t1) {
+          const f = g.t1 > g.t0 ? (T - g.t0) / (g.t1 - g.t0) : 1;
+          x = N[g.a].x + (N[g.b].x - N[g.a].x) * f; y = N[g.a].y + (N[g.b].y - N[g.a].y) * f; break;
+        }
+        if (T > g.t1) { x = N[g.b].x; y = N[g.b].y; }
+      }
+    }
+    s += `<g class="truck" style="--c:var(--t${k + 1})"><circle cx="${x.toFixed(3)}" cy="${y.toFixed(3)}" r="0.46"/><text x="${x.toFixed(3)}" y="${(y + 0.02).toFixed(3)}">${k + 1}</text></g>`;
+    for (const sp of tr.stops) {
+      if (!sp || !sp.id || sp.arr == null) continue;
+      const el = document.querySelector(`[data-node="${sp.id}"]`);
+      if (el) el.classList.toggle("done", T >= sp.arr);
+    }
+  });
+  const sim = $("sim");
+  if (sim) sim.innerHTML = s;
+}
+function finish() {
+  cancelAnimationFrame(state.raf);
+  drawSim(simMax);
+  state.playing = false;
+  state.tried = true;
+  $("skip").hidden = true;
+  $("clock").innerHTML = `${clock(simMax)}<small>全車帰庫</small>`;
+  const ev = simEv, i = state.stage, par = state.par.profit;
+  const stars = starsFor(ev.profit, par);
+  const key = sid(i), prev = save.best[key];
+  const isBest = !prev || ev.profit > prev.profit;
+  const wasExtra = extraOpen();
+  if (isBest) save.best[key] = { profit: ev.profit, stars: Math.max(stars, prev ? prev.stars : 0), routes: state.routes };
+  else if (stars > prev.stars) save.best[key].stars = stars;
+  if (stars >= CLEAR && i + 1 < STAGES.length) save.open[sid(i + 1)] = true;
+  persist();
+  const mx = maxStars(), shown = Math.min(stars, mx);
+  const extraJustOpened = !wasExtra && mx === 3;
+
+  $("rStage").textContent = `STAGE ${i + 1} ${state.st.name}`;
+  $("rTitle").textContent = stars >= CLEAR ? "ステージクリア" : ev.profit > 0 ? "配達完了" : "赤字で終了";
+  $("rStars").innerHTML = Array.from({ length: mx }, (_, j) => `<span class="${j < shown ? "on" : ""}">★</span>`).join("");
+  $("rProfit").innerHTML = yen(ev.profit) + (isBest && prev ? `<span class="new">自己ベスト</span>` : "");
+  const need = k => yen(Math.ceil(par * STAR_AT[k]) - ev.profit);
+  let msg;
+  if (extraJustOpened) msg = "全ステージクリア！ エキストラ解放：どのステージでも ★★★（AI配車係の記録）に挑戦できます。";
+  else if (mx === 3 && ev.profit > par) msg = `★★★ 達成。AI配車係の記録を ${yen(ev.profit - par)} 上回った。見事な配車です。`;
+  else if (mx === 3 && stars === 3) msg = "★★★ 達成。AI配車係の記録に並んだ。";
+  else if (mx === 3 && stars === CLEAR) msg = `クリア済み。★★★ まであと ${need(2)}。`;
+  else if (stars >= CLEAR) msg = i < STAGES.length - 1 ? "クリア！ 次のステージに進めます。" : "クリア！";
+  else if (stars === 1) msg = `クリア（★★）まであと ${need(1)}。`;
+  else msg = `★ まであと ${need(0)}、クリア（★★）まであと ${need(1)}。`;
+  $("rMsg").textContent = msg;
+  $("rDetail").textContent = `配達 ${ev.served}/${state.st.nodes.length - 1}軒 · 走行 ${ev.km.toFixed(1)}km · 使った車 ${ev.used}台 · 浮いた人件費 ${yen(ev.saved)}（残り計 ${Math.floor(ev.savedMin)}分）` + (ev.late ? ` · 遅れ ${ev.late}軒` : "") + ` · 全車帰庫 ${clock(simMax)}`;
+  const next = $("rNext");
+  next.hidden = !(stars >= CLEAR && i < STAGES.length - 1);
+  $("rGhost").textContent = state.ghost ? "AIのルートを隠す" : "AIのルートを見る";
+  $("rGhost").hidden = !ghostAllowed();
+  $("rRetry").style.gridColumn = ghostAllowed() ? "" : "1 / -1";
+  $("result").hidden = false;
+  renderStages();
+  renderPanel(evaluate(state.st, state.routes, true));
+  $("rRetry").focus();
+}
+
+/* ---------- events ---------- */
+$("map").addEventListener("click", e => {
+  const g = e.target.closest("[data-node]");
+  if (!g || state.playing) return;
+  tapNode(+g.dataset.node);
+});
+const tip = $("tip");
+$("map").addEventListener("pointermove", e => {
+  const g = e.target.closest("[data-node]");
+  if (!g || e.pointerType === "touch") { tip.hidden = true; return; }
+  const n = state.st.nodes[+g.dataset.node];
+  const wrap = $("mapwrap").getBoundingClientRect();
+  if (n.id === 0) tip.innerHTML = `<b>倉庫</b><br>タップで積み直し（10分）`;
+  else {
+    const w = where(n.id);
+    tip.innerHTML = `<b>${n.name}</b><br>${n.demand}箱 · 報酬 ${yen(n.reward)}${n.due != null ? `<br>〆 ${clock(n.due)}（遅れると半額）` : ""}<br>倉庫から ${state.st.D[0][n.id].toFixed(1)}km` + (w ? `<br>${w[0] + 1}号車が配達` : "");
+  }
+  tip.hidden = false;
+  let x = e.clientX - wrap.left + 14, y = e.clientY - wrap.top + 14;
+  if (x + 230 > wrap.width) x = e.clientX - wrap.left - 230;
+  tip.style.left = Math.max(4, x) + "px"; tip.style.top = y + "px";
+});
+$("map").addEventListener("pointerleave", () => { tip.hidden = true; });
+
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("[data-truck]");
+  if (!b) return;
+  state.sel = +b.dataset.truck;
+  renderAll();
+});
+$("route").addEventListener("click", e => {
+  const b = e.target.closest("[data-op]");
+  if (!b) return;
+  const i = +b.dataset.i, op = b.dataset.op;
+  edit(() => {
+    const r = state.routes[state.sel];
+    if (op === "del") r.splice(i, 1);
+    else if (op === "up" && i > 0) [r[i - 1], r[i]] = [r[i], r[i - 1]];
+    else if (op === "down" && i < r.length - 1) [r[i + 1], r[i]] = [r[i], r[i + 1]];
+  });
+});
+$("stages").addEventListener("click", e => {
+  const b = e.target.closest("[data-stage]");
+  if (!b || b.disabled) return;
+  const i = +b.dataset.stage;
+  loadStage(i, routesFor(i));
+});
+$("bReload").addEventListener("click", addReload);
+$("bUndo").addEventListener("click", () => {
+  if (!state.undo.length || state.playing) return;
+  state.routes = JSON.parse(state.undo.pop());
+  saveWork();
+  renderAll();
+});
+$("bClear").addEventListener("click", () => edit(() => { state.routes[state.sel] = []; }));
+$("bGo").addEventListener("click", go);
+$("skip").addEventListener("click", () => { if (state.playing) finish(); });
+$("ghost").addEventListener("change", e => { state.ghost = e.target.checked; renderAll(); });
+$("rRetry").addEventListener("click", () => { $("result").hidden = true; renderAll(); });
+$("rGhost").addEventListener("click", () => {
+  state.ghost = !state.ghost; $("ghost").checked = state.ghost;
+  $("result").hidden = true; renderAll();
+});
+$("rNext").addEventListener("click", () => loadStage(state.stage + 1, routesFor(state.stage + 1)));
+$("result").addEventListener("click", e => { if (e.target.id === "result") { $("result").hidden = true; renderAll(); } });
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input, textarea")) return;
+  if (!$("result").hidden) { if (e.key === "Escape") { $("result").hidden = true; renderAll(); } return; }
+  if (/^[1-3]$/.test(e.key) && +e.key <= state.st.trucks) { state.sel = +e.key - 1; renderAll(); }
+  else if ((e.key === "z" || e.key === "Z") && !e.altKey) { e.preventDefault(); $("bUndo").click(); }
+  else if (e.key === "Escape" && state.playing) finish();
+});
+
+/* ---------- boot ---------- */
+function start(data) {
+  data = data || {};
+  if (location.hash.startsWith("#selftest")) { selftest(location.hash === "#selftest-all"); return; }
+  rescoreSaves();
+  const li = STAGES.findIndex(s => s.id === save.last);
+  let top = 0;
+  STAGES.forEach((_, k) => { if (isOpen(k)) top = k; });
+  const i = Number.isInteger(data.stage) ? Math.min(data.stage, STAGES.length - 1) : li >= 0 && isOpen(li) ? li : top;
+  loadStage(i, data.routes || routesFor(i));
+  if (Number.isInteger(data.sel) && data.sel < state.st.trucks) { state.sel = data.sel; renderAll(); }
+  if (!save.best.s1 && !save.work.s1 && !data.stage) $("how").open = true;
+}
+function selftest(includeAll) {
+  const out = [];
+  STAGES.forEach((d, i) => {
+    if (d.par && !includeAll) return;
+    const st = buildStage(d, i);
+    let best = null; const all = [];
+    for (let sd = 1; sd <= 6; sd++) { const r = solve(st, sd * 7919 + i, 3); all.push(r.profit); if (!best || r.profit > best.profit) best = r; }
+    const e = evaluate(st, best.routes, true);
+    const byK = [1, 2, 3].filter(k => k <= st.trucks).map(k => solveK(Object.assign({}, st, { trucks: k }), 5, 120000, 2).profit).join("/");
+    out.push(`${i + 1} ${d.name}: byK=${byK} best=${best.profit} all=${all.join("/")} used=${e.used} served=${e.served} late=${e.late} km=${e.km.toFixed(1)} ends=${e.trucks.map(t => clock(t.end)).join("/")}\n   par: ${JSON.stringify(best.routes)},`);
+  });
+  document.body.insertAdjacentHTML("beforeend", `<pre id="selftest">${out.join("\n")}</pre>`);
+}
+window.addEventListener("error", e => document.body.insertAdjacentHTML("beforeend", `<pre class="err">ERR ${e.message} @${e.lineno}</pre>`));
+
+const hot = window.claude && window.claude.hot;
+if (hot && hot.snapshot) hot.snapshot(() => ({ stage: state.stage, routes: state.routes, sel: state.sel }));
+if (hot && hot.ready) hot.ready(start); else start(hot && hot.data ? hot.data : {});
+</script>
