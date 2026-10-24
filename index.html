@@ -2,126 +2,55 @@
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
 <title>kikitamu のミニゲーム</title>
-<meta name="description" content="ブラウザでそのまま遊べる自作ミニゲーム。友達とネットで遊べるものもあります。">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
 <style>
-/* Layout: a shelf of game cartridges. Short header, a two-column grid of cards (one column on phones), then how to play online. */
-:root {
-  --night: #0c0f1c;
-  --panel: #151a2c;
-  --line: #2a3150;
-  --ink: #ece6d6;
-  --muted: #959cba;
-  --lamp: #f0b84c;
-  --f-pixel: "DotGothic16", "MS Gothic", "Osaka-Mono", monospace;
-  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
-  color-scheme: dark;
-}
-* { box-sizing: border-box; }
-html { background: var(--night); }
-body {
-  margin: 0; background: var(--night); color: var(--ink);
-  font-family: var(--f-body); font-size: 15px; line-height: 1.7;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 32px 48px;
-}
-a { color: inherit; }
-a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; }
-.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
-header h1 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: clamp(30px, 6vw, 46px); line-height: 1.15; letter-spacing: .06em; text-wrap: balance; }
-header h1 span { color: var(--lamp); }
-header p { margin: 10px 0 0; color: var(--muted); max-width: 40em; }
-.shelf { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-@media (max-width: 720px) { .shelf { grid-template-columns: minmax(0, 1fr); } }
-.game { background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; }
-.game .shot { display: block; aspect-ratio: 16 / 10; background: #070910; border-bottom: 1px solid var(--line); overflow: hidden; }
-.game .shot img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; transition: transform .25s; }
-.game .shot:hover img { transform: scale(1.03); }
-.game .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.game h2 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: 24px; line-height: 1.2; color: var(--c); }
-.game h2 small { font-family: var(--f-body); font-size: 12px; color: var(--muted); margin-left: .6em; letter-spacing: .04em; }
-.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.tags li { font-size: 12px; padding: 1px 8px; border: 1px solid var(--line); color: var(--muted); }
-.tags li.net { border-color: var(--c); color: var(--c); }
-.game p { margin: 0; }
-.play { margin-top: auto; align-self: flex-start; font-family: var(--f-pixel); font-size: 16px; text-decoration: none; background: var(--c); color: #12100a; padding: 6px 18px; }
-.play:hover { filter: brightness(1.1); }
-.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 28px; border-top: 1px solid var(--line); padding-top: 22px; }
-.how h2 { margin: 0 0 6px; font-family: var(--f-pixel); font-weight: 400; font-size: 18px; color: var(--lamp); }
-.how ol, .how ul { margin: 0; padding-left: 1.3em; }
-.how li + li { margin-top: 4px; }
-footer { color: var(--muted); font-size: 12px; }
-@media (prefers-reduced-motion: reduce) { .game .shot img { transition: none; } }
+:root { color-scheme: dark; }
+html, body { margin: 0; height: 100%; background: #0c0f1c; color: #ece6d6; font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif; }
+body { display: flex; align-items: center; justify-content: center; padding: 0 max(16px, env(safe-area-inset-left, 0px)); }
+.gate { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 12px; }
+.gate h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: .04em; }
+.gate h1 span { color: #f0b84c; }
+.gate p { margin: 0; color: #959cba; font-size: 14px; }
+form { display: flex; gap: 8px; }
+input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 8px 10px; background: #070910; color: #ece6d6; border: 2px solid #2a3150; }
+input:focus { outline: none; border-color: #f0b84c; }
+button { font: inherit; font-size: 16px; padding: 8px 16px; background: #f0b84c; color: #12100a; border: 0; cursor: pointer; }
+#msg { color: #ff8a9a; min-height: 1.4em; }
 </style>
-
-<div class="wrap">
-  <header>
-    <h1>kikitamu の<span>ミニゲーム</span></h1>
-    <p>ブラウザでそのまま遊べる自作のミニゲームです。インストールはいりません。「ネットで」と書いてあるものは、招待リンクを送れば友達と一緒に遊べます。</p>
-  </header>
-
-  <ul class="shelf">
-    <li class="game" style="--c:#ff5d73">
-      <a class="shot" href="yogiri/" tabindex="-1" aria-hidden="true"><img src="img/yogiri.webp" alt="" width="640" height="400" loading="lazy"></a>
-      <div class="body">
-        <h2>夜霧ノ怪盗<small>よぎりのかいとう</small></h2>
-        <ul class="tags"><li>推理・ボードゲーム</li><li>ターン制</li><li>ひとり（CPU の怪盗）</li><li class="net">ネットで 3〜4 人</li></ul>
-        <p>姿の見えない怪盗を、使った乗り物の記録と時々の目撃から、探偵たちが相談して追い詰める。怪盗は宝を盗んで町の外へ。霧の港町・雪の温泉町・運河の町の 3 つの地図。</p>
-        <a class="play" href="yogiri/">遊ぶ</a>
-      </div>
-    </li>
-    <li class="game" style="--c:#ffd23f">
-      <a class="shot" href="mitsukage/" tabindex="-1" aria-hidden="true"><img src="img/mitsukage.webp" alt="" width="640" height="400" loading="lazy"></a>
-      <div class="body">
-        <h2>三ツ影<small>みつかげ</small></h2>
-        <ul class="tags"><li>協力・潜入</li><li>リアルタイム</li><li>ひとり（3 人を切りかえ）</li><li class="net">ネットで 3 人</li></ul>
-        <p>陽動・鍵開け・ハッカーの 3 人組で、見張りの目をかいくぐって金庫を破る。赤外線やきしむ床、金庫の番号は、それぞれの画面にしか見えない。声をかけ合って進む。全 3 ステージ。</p>
-        <a class="play" href="mitsukage/">遊ぶ</a>
-      </div>
-    </li>
-    <li class="game" style="--c:#ff8d3a">
-      <a class="shot" href="https://kikitamu.github.io/houkago-banchou/" tabindex="-1" aria-hidden="true"><img src="img/houkago.webp" alt="" width="640" height="400" loading="lazy"></a>
-      <div class="body">
-        <h2>放課後番長<small>ほうかごばんちょう</small></h2>
-        <ul class="tags"><li>喧嘩アクション</li><li>ファミコン風</li><li>ひとり・CPU と 3 人</li><li class="net">ネットで 3 人</li></ul>
-        <p>くにおくん風の喧嘩アクション。3 人で手下と番長を倒す「番長戦」と、クロスカントリーや勝ち抜き格闘など 4 種目を競う「大運動会」。</p>
-        <a class="play" href="https://kikitamu.github.io/houkago-banchou/">遊ぶ</a>
-      </div>
-    </li>
-    <li class="game" style="--c:#7fd4c8">
-      <a class="shot" href="haishaban/" tabindex="-1" aria-hidden="true"><img src="img/haishaban.webp" alt="" width="640" height="400" loading="lazy"></a>
-      <div class="body">
-        <h2>配車盤<small>はいしゃばん</small></h2>
-        <ul class="tags"><li>パズル</li><li>配送ルート</li><li>ひとり</li></ul>
-        <p>トラックの配達の順番を組んで、燃料と人件費をおさえて利益を出す配送パズル。全 9 ステージ。AI 配車係の記録に挑む。</p>
-        <a class="play" href="haishaban/">遊ぶ</a>
-      </div>
-    </li>
-  </ul>
-
-  <section class="how" aria-label="ネットで遊ぶには">
-    <div>
-      <h2>友達とネットで遊ぶ</h2>
-      <ol>
-        <li>1 人がゲームを開き、「ネットで」を選んで部屋をつくる。</li>
-        <li>出てきた「招待リンクをコピー」を押して、Discord などに貼る。</li>
-        <li>友達はリンクを開くだけで部屋に入れる。そろったら、部屋をつくった人がスタート。</li>
-      </ol>
-    </div>
-    <div>
-      <h2>知っておくと安心なこと</h2>
-      <ul>
-        <li>部屋をつくった人のブラウザでゲームを進めているので、その人がページを閉じると全員の試合が終わる。</li>
-        <li>会社や学校のネットワークなど、回線によってはつながらないことがある。そのときはスマホのテザリングなど別の回線で試す。</li>
-        <li>記録やセーブは、遊んだブラウザの中にだけ残る。</li>
-      </ul>
-    </div>
-  </section>
-
-  <footer>どのゲームも 1 枚の HTML ファイルでできています。遊び方は各ゲームのページの下に書いてあります。</footer>
-</div>
+<main class="gate" id="gate" hidden>
+  <h1>kikitamu の<span>ミニゲーム</span></h1>
+  <p>合言葉を入れてください。</p>
+  <form id="f"><input id="pw" type="password" autocomplete="current-password" aria-label="合言葉"><button type="submit">入る</button></form>
+  <p id="msg" role="alert"></p>
+</main>
+<script id="page" type="text/plain">PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImphIj4KPG1ldGEgY2hhcnNldD0idXRmLTgiPgo8bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLCBpbml0aWFsLXNjYWxlPTEsIHZpZXdwb3J0LWZpdD1jb3ZlciI+Cjx0aXRsZT5raWtpdGFtdSDjga7jg5/jg4vjgrLjg7zjg6A8L3RpdGxlPgo8bWV0YSBuYW1lPSJkZXNjcmlwdGlvbiIgY29udGVudD0i44OW44Op44Km44K244Gn44Gd44Gu44G+44G+6YGK44G544KL6Ieq5L2c44Of44OL44Ky44O844Og44CC5Y+L6YGU44Go44ON44OD44OI44Gn6YGK44G544KL44KC44Gu44KC44GC44KK44G+44GZ44CCIj4KPGxpbmsgcmVsPSJwcmVjb25uZWN0IiBocmVmPSJodHRwczovL2ZvbnRzLmdvb2dsZWFwaXMuY29tIj4KPGxpbmsgcmVsPSJwcmVjb25uZWN0IiBocmVmPSJodHRwczovL2ZvbnRzLmdzdGF0aWMuY29tIiBjcm9zc29yaWdpbj4KPGxpbmsgcmVsPSJzdHlsZXNoZWV0IiBocmVmPSJodHRwczovL2ZvbnRzLmdvb2dsZWFwaXMuY29tL2NzczI/ZmFtaWx5PURvdEdvdGhpYzE2JmZhbWlseT1aZW4rS2FrdStHb3RoaWMrTmV3OndnaHRANDAwOzcwMCZkaXNwbGF5PXN3YXAiPgo8c3R5bGU+Ci8qIExheW91dDogYSBzaGVsZiBvZiBnYW1lIGNhcnRyaWRnZXMuIFNob3J0IGhlYWRlciwgYSB0d28tY29sdW1uIGdyaWQgb2YgY2FyZHMgKG9uZSBjb2x1bW4gb24gcGhvbmVzKSwgdGhlbiBob3cgdG8gcGxheSBvbmxpbmUuICovCjpyb290IHsKICAtLW5pZ2h0OiAjMGMwZjFjOwogIC0tcGFuZWw6ICMxNTFhMmM7CiAgLS1saW5lOiAjMmEzMTUwOwogIC0taW5rOiAjZWNlNmQ2OwogIC0tbXV0ZWQ6ICM5NTljYmE7CiAgLS1sYW1wOiAjZjBiODRjOwogIC0tZi1waXhlbDogIkRvdEdvdGhpYzE2IiwgIk1TIEdvdGhpYyIsICJPc2FrYS1Nb25vIiwgbW9ub3NwYWNlOwogIC0tZi1ib2R5OiAiWmVuIEtha3UgR290aGljIE5ldyIsICJIaXJhZ2lubyBTYW5zIiwgIll1IEdvdGhpYyIsICJNZWlyeW8iLCBzYW5zLXNlcmlmOwogIGNvbG9yLXNjaGVtZTogZGFyazsKfQoqIHsgYm94LXNpemluZzogYm9yZGVyLWJveDsgfQpodG1sIHsgYmFja2dyb3VuZDogdmFyKC0tbmlnaHQpOyB9CmJvZHkgewogIG1hcmdpbjogMDsgYmFja2dyb3VuZDogdmFyKC0tbmlnaHQpOyBjb2xvcjogdmFyKC0taW5rKTsKICBmb250LWZhbWlseTogdmFyKC0tZi1ib2R5KTsgZm9udC1zaXplOiAxNXB4OyBsaW5lLWhlaWdodDogMS43OwogIHBhZGRpbmctbGVmdDogbWF4KDE2cHgsIGVudihzYWZlLWFyZWEtaW5zZXQtbGVmdCwgMHB4KSk7CiAgcGFkZGluZy1yaWdodDogbWF4KDE2cHgsIGVudihzYWZlLWFyZWEtaW5zZXQtcmlnaHQsIDBweCkpOwogIHBhZGRpbmctYmxvY2s6IDMycHggNDhweDsKfQphIHsgY29sb3I6IGluaGVyaXQ7IH0KYTpmb2N1cy12aXNpYmxlIHsgb3V0bGluZTogMnB4IHNvbGlkIHZhcigtLWxhbXApOyBvdXRsaW5lLW9mZnNldDogM3B4OyB9Ci53cmFwIHsgbWF4LXdpZHRoOiAxMDQwcHg7IG1hcmdpbjogMCBhdXRvOyBkaXNwbGF5OiBmbGV4OyBmbGV4LWRpcmVjdGlvbjogY29sdW1uOyBnYXA6IDI4cHg7IH0KaGVhZGVyIGgxIHsgbWFyZ2luOiAwOyBmb250LWZhbWlseTogdmFyKC0tZi1waXhlbCk7IGZvbnQtd2VpZ2h0OiA0MDA7IGZvbnQtc2l6ZTogY2xhbXAoMzBweCwgNnZ3LCA0NnB4KTsgbGluZS1oZWlnaHQ6IDEuMTU7IGxldHRlci1zcGFjaW5nOiAuMDZlbTsgdGV4dC13cmFwOiBiYWxhbmNlOyB9CmhlYWRlciBoMSBzcGFuIHsgY29sb3I6IHZhcigtLWxhbXApOyB9CmhlYWRlciBwIHsgbWFyZ2luOiAxMHB4IDAgMDsgY29sb3I6IHZhcigtLW11dGVkKTsgbWF4LXdpZHRoOiA0MGVtOyB9Ci5zaGVsZiB7IGxpc3Qtc3R5bGU6IG5vbmU7IG1hcmdpbjogMDsgcGFkZGluZzogMDsgZGlzcGxheTogZ3JpZDsgZ3JpZC10ZW1wbGF0ZS1jb2x1bW5zOiByZXBlYXQoMiwgbWlubWF4KDAsIDFmcikpOyBnYXA6IDE4cHg7IH0KQG1lZGlhIChtYXgtd2lkdGg6IDcyMHB4KSB7IC5zaGVsZiB7IGdyaWQtdGVtcGxhdGUtY29sdW1uczogbWlubWF4KDAsIDFmcik7IH0gfQouZ2FtZSB7IGJhY2tncm91bmQ6IHZhcigtLXBhbmVsKTsgYm9yZGVyOiAxcHggc29saWQgdmFyKC0tbGluZSk7IGRpc3BsYXk6IGZsZXg7IGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47IG1pbi13aWR0aDogMDsgfQouZ2FtZSAuc2hvdCB7IGRpc3BsYXk6IGJsb2NrOyBhc3BlY3QtcmF0aW86IDE2IC8gMTA7IGJhY2tncm91bmQ6ICMwNzA5MTA7IGJvcmRlci1ib3R0b206IDFweCBzb2xpZCB2YXIoLS1saW5lKTsgb3ZlcmZsb3c6IGhpZGRlbjsgfQouZ2FtZSAuc2hvdCBpbWcgeyBkaXNwbGF5OiBibG9jazsgd2lkdGg6IDEwMCU7IGhlaWdodDogMTAwJTsgb2JqZWN0LWZpdDogY292ZXI7IGltYWdlLXJlbmRlcmluZzogYXV0bzsgdHJhbnNpdGlvbjogdHJhbnNmb3JtIC4yNXM7IH0KLmdhbWUgLnNob3Q6aG92ZXIgaW1nIHsgdHJhbnNmb3JtOiBzY2FsZSgxLjAzKTsgfQouZ2FtZSAuYm9keSB7IHBhZGRpbmc6IDE0cHggMTZweCAxNnB4OyBkaXNwbGF5OiBmbGV4OyBmbGV4LWRpcmVjdGlvbjogY29sdW1uOyBnYXA6IDhweDsgZmxleDogMTsgfQouZ2FtZSBoMiB7IG1hcmdpbjogMDsgZm9udC1mYW1pbHk6IHZhcigtLWYtcGl4ZWwpOyBmb250LXdlaWdodDogNDAwOyBmb250LXNpemU6IDI0cHg7IGxpbmUtaGVpZ2h0OiAxLjI7IGNvbG9yOiB2YXIoLS1jKTsgfQouZ2FtZSBoMiBzbWFsbCB7IGZvbnQtZmFtaWx5OiB2YXIoLS1mLWJvZHkpOyBmb250LXNpemU6IDEycHg7IGNvbG9yOiB2YXIoLS1tdXRlZCk7IG1hcmdpbi1sZWZ0OiAuNmVtOyBsZXR0ZXItc3BhY2luZzogLjA0ZW07IH0KLnRhZ3MgeyBkaXNwbGF5OiBmbGV4OyBmbGV4LXdyYXA6IHdyYXA7IGdhcDogNnB4OyBtYXJnaW46IDA7IHBhZGRpbmc6IDA7IGxpc3Qtc3R5bGU6IG5vbmU7IH0KLnRhZ3MgbGkgeyBmb250LXNpemU6IDEycHg7IHBhZGRpbmc6IDFweCA4cHg7IGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLWxpbmUpOyBjb2xvcjogdmFyKC0tbXV0ZWQpOyB9Ci50YWdzIGxpLm5ldCB7IGJvcmRlci1jb2xvcjogdmFyKC0tYyk7IGNvbG9yOiB2YXIoLS1jKTsgfQouZ2FtZSBwIHsgbWFyZ2luOiAwOyB9Ci5wbGF5IHsgbWFyZ2luLXRvcDogYXV0bzsgYWxpZ24tc2VsZjogZmxleC1zdGFydDsgZm9udC1mYW1pbHk6IHZhcigtLWYtcGl4ZWwpOyBmb250LXNpemU6IDE2cHg7IHRleHQtZGVjb3JhdGlvbjogbm9uZTsgYmFja2dyb3VuZDogdmFyKC0tYyk7IGNvbG9yOiAjMTIxMDBhOyBwYWRkaW5nOiA2cHggMThweDsgfQoucGxheTpob3ZlciB7IGZpbHRlcjogYnJpZ2h0bmVzcygxLjEpOyB9Ci5ob3cgeyBkaXNwbGF5OiBncmlkOyBncmlkLXRlbXBsYXRlLWNvbHVtbnM6IHJlcGVhdChhdXRvLWZpdCwgbWlubWF4KDI2MHB4LCAxZnIpKTsgZ2FwOiAxMnB4IDI4cHg7IGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1saW5lKTsgcGFkZGluZy10b3A6IDIycHg7IH0KLmhvdyBoMiB7IG1hcmdpbjogMCAwIDZweDsgZm9udC1mYW1pbHk6IHZhcigtLWYtcGl4ZWwpOyBmb250LXdlaWdodDogNDAwOyBmb250LXNpemU6IDE4cHg7IGNvbG9yOiB2YXIoLS1sYW1wKTsgfQouaG93IG9sLCAuaG93IHVsIHsgbWFyZ2luOiAwOyBwYWRkaW5nLWxlZnQ6IDEuM2VtOyB9Ci5ob3cgbGkgKyBsaSB7IG1hcmdpbi10b3A6IDRweDsgfQpmb290ZXIgeyBjb2xvcjogdmFyKC0tbXV0ZWQpOyBmb250LXNpemU6IDEycHg7IH0KQG1lZGlhIChwcmVmZXJzLXJlZHVjZWQtbW90aW9uOiByZWR1Y2UpIHsgLmdhbWUgLnNob3QgaW1nIHsgdHJhbnNpdGlvbjogbm9uZTsgfSB9Cjwvc3R5bGU+Cgo8ZGl2IGNsYXNzPSJ3cmFwIj4KICA8aGVhZGVyPgogICAgPGgxPmtpa2l0YW11IOOBrjxzcGFuPuODn+ODi+OCsuODvOODoDwvc3Bhbj48L2gxPgogICAgPHA+44OW44Op44Km44K244Gn44Gd44Gu44G+44G+6YGK44G544KL6Ieq5L2c44Gu44Of44OL44Ky44O844Og44Gn44GZ44CC44Kk44Oz44K544OI44O844Or44Gv44GE44KK44G+44Gb44KT44CC44CM44ON44OD44OI44Gn44CN44Go5pu444GE44Gm44GC44KL44KC44Gu44Gv44CB5oub5b6F44Oq44Oz44Kv44KS6YCB44KM44Gw5Y+L6YGU44Go5LiA57eS44Gr6YGK44G544G+44GZ44CCPC9wPgogIDwvaGVhZGVyPgoKICA8dWwgY2xhc3M9InNoZWxmIj4KICAgIDxsaSBjbGFzcz0iZ2FtZSIgc3R5bGU9Ii0tYzojZmY1ZDczIj4KICAgICAgPGEgY2xhc3M9InNob3QiIGhyZWY9InlvZ2lyaS8iIHRhYmluZGV4PSItMSIgYXJpYS1oaWRkZW49InRydWUiPjxpbWcgc3JjPSJpbWcveW9naXJpLndlYnAiIGFsdD0iIiB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQwMCIgbG9hZGluZz0ibGF6eSI+PC9hPgogICAgICA8ZGl2IGNsYXNzPSJib2R5Ij4KICAgICAgICA8aDI+5aSc6Zyn44OO5oCq55uXPHNtYWxsPuOCiOOBjuOCiuOBruOBi+OBhOOBqOOBhjwvc21hbGw+PC9oMj4KICAgICAgICA8dWwgY2xhc3M9InRhZ3MiPjxsaT7mjqjnkIbjg7vjg5zjg7zjg4njgrLjg7zjg6A8L2xpPjxsaT7jgr/jg7zjg7PliLY8L2xpPjxsaT7jgbLjgajjgorvvIhDUFUg44Gu5oCq55uX77yJPC9saT48bGkgY2xhc3M9Im5ldCI+44ON44OD44OI44GnIDPjgJw0IOS6ujwvbGk+PC91bD4KICAgICAgICA8cD7lp7/jga7opovjgYjjgarjgYTmgKrnm5fjgpLjgIHkvb/jgaPjgZ/kuZfjgornianjga7oqJjpjLLjgajmmYLjgIXjga7nm67mkoPjgYvjgonjgIHmjqLlgbXjgZ/jgaHjgYznm7joq4fjgZfjgabov73jgYToqbDjgoHjgovjgILmgKrnm5fjga/lrp3jgpLnm5fjgpPjgafnlLrjga7lpJbjgbjjgILpnKfjga7muK/nlLrjg7vpm6rjga7muKnms4nnlLrjg7vpgYvmsrPjga7nlLrjga4gMyDjgaTjga7lnLDlm7PjgII8L3A+CiAgICAgICAgPGEgY2xhc3M9InBsYXkiIGhyZWY9InlvZ2lyaS8iPumBiuOBtjwvYT4KICAgICAgPC9kaXY+CiAgICA8L2xpPgogICAgPGxpIGNsYXNzPSJnYW1lIiBzdHlsZT0iLS1jOiNmZmQyM2YiPgogICAgICA8YSBjbGFzcz0ic2hvdCIgaHJlZj0ibWl0c3VrYWdlLyIgdGFiaW5kZXg9Ii0xIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PGltZyBzcmM9ImltZy9taXRzdWthZ2Uud2VicCIgYWx0PSIiIHdpZHRoPSI2NDAiIGhlaWdodD0iNDAwIiBsb2FkaW5nPSJsYXp5Ij48L2E+CiAgICAgIDxkaXYgY2xhc3M9ImJvZHkiPgogICAgICAgIDxoMj7kuInjg4TlvbE8c21hbGw+44G/44Gk44GL44GSPC9zbWFsbD48L2gyPgogICAgICAgIDx1bCBjbGFzcz0idGFncyI+PGxpPuWNlOWKm+ODu+a9nOWFpTwvbGk+PGxpPuODquOCouODq+OCv+OCpOODoDwvbGk+PGxpPuOBsuOBqOOCiu+8iDMg5Lq644KS5YiH44KK44GL44GI77yJPC9saT48bGkgY2xhc3M9Im5ldCI+44ON44OD44OI44GnIDMg5Lq6PC9saT48L3VsPgogICAgICAgIDxwPumZveWLleODu+mNtemWi+OBkeODu+ODj+ODg+OCq+ODvOOBriAzIOS6uue1hOOBp+OAgeimi+W8teOCiuOBruebruOCkuOBi+OBhOOBj+OBkOOBo+OBpumHkeW6q+OCkuegtOOCi+OAgui1pOWklue3muOChOOBjeOBl+OCgOW6iuOAgemHkeW6q+OBrueVquWPt+OBr+OAgeOBneOCjOOBnuOCjOOBrueUu+mdouOBq+OBl+OBi+imi+OBiOOBquOBhOOAguWjsOOCkuOBi+OBkeWQiOOBo+OBpumAsuOCgOOAguWFqCAzIOOCueODhuODvOOCuOOAgjwvcD4KICAgICAgICA8YSBjbGFzcz0icGxheSIgaHJlZj0ibWl0c3VrYWdlLyI+6YGK44G2PC9hPgogICAgICA8L2Rpdj4KICAgIDwvbGk+CiAgICA8bGkgY2xhc3M9ImdhbWUiIHN0eWxlPSItLWM6I2ZmOGQzYSI+CiAgICAgIDxhIGNsYXNzPSJzaG90IiBocmVmPSJob3VrYWdvLWJhbmNob3UvIiB0YWJpbmRleD0iLTEiIGFyaWEtaGlkZGVuPSJ0cnVlIj48aW1nIHNyYz0iaW1nL2hvdWthZ28ud2VicCIgYWx0PSIiIHdpZHRoPSI2NDAiIGhlaWdodD0iNDAwIiBsb2FkaW5nPSJsYXp5Ij48L2E+CiAgICAgIDxkaXYgY2xhc3M9ImJvZHkiPgogICAgICAgIDxoMj7mlL7oqrLlvoznlarplbc8c21hbGw+44G744GG44GL44GU44Gw44KT44Gh44KH44GGPC9zbWFsbD48L2gyPgogICAgICAgIDx1bCBjbGFzcz0idGFncyI+PGxpPuWWp+WYqeOCouOCr+OCt+ODp+ODszwvbGk+PGxpPuODleOCoeODn+OCs+ODs+miqDwvbGk+PGxpPuOBsuOBqOOCiuODu0NQVSDjgaggMyDkuro8L2xpPjxsaSBjbGFzcz0ibmV0Ij7jg43jg4Pjg4jjgacgMyDkuro8L2xpPjwvdWw+CiAgICAgICAgPHA+44GP44Gr44GK44GP44KT6aKo44Gu5Zan5Zip44Ki44Kv44K344On44Oz44CCMyDkurrjgafmiYvkuIvjgajnlarplbfjgpLlgJLjgZnjgIznlarplbfmiKbjgI3jgajjgIHjgq/jg63jgrnjgqvjg7Pjg4jjg6rjg7zjgoTli53jgaHmipzjgY3moLzpl5jjgarjgakgNCDnqK7nm67jgpLnq7bjgYbjgIzlpKfpgYvli5XkvJrjgI3jgII8L3A+CiAgICAgICAgPGEgY2xhc3M9InBsYXkiIGhyZWY9ImhvdWthZ28tYmFuY2hvdS8iPumBiuOBtjwvYT4KICAgICAgPC9kaXY+CiAgICA8L2xpPgogICAgPGxpIGNsYXNzPSJnYW1lIiBzdHlsZT0iLS1jOiM3ZmQ0YzgiPgogICAgICA8YSBjbGFzcz0ic2hvdCIgaHJlZj0iaGFpc2hhYmFuLyIgdGFiaW5kZXg9Ii0xIiBhcmlhLWhpZGRlbj0idHJ1ZSI+PGltZyBzcmM9ImltZy9oYWlzaGFiYW4ud2VicCIgYWx0PSIiIHdpZHRoPSI2NDAiIGhlaWdodD0iNDAwIiBsb2FkaW5nPSJsYXp5Ij48L2E+CiAgICAgIDxkaXYgY2xhc3M9ImJvZHkiPgogICAgICAgIDxoMj7phY3ou4rnm6Q8c21hbGw+44Gv44GE44GX44KD44Gw44KTPC9zbWFsbD48L2gyPgogICAgICAgIDx1bCBjbGFzcz0idGFncyI+PGxpPuODkeOCuuODqzwvbGk+PGxpPumFjemAgeODq+ODvOODiDwvbGk+PGxpPuOBsuOBqOOCijwvbGk+PC91bD4KICAgICAgICA8cD7jg4jjg6njg4Pjgq/jga7phY3pgZTjga7poIbnlarjgpLntYTjgpPjgafjgIHnh4Pmlpnjgajkurrku7bosrvjgpLjgYrjgZXjgYjjgabliKnnm4rjgpLlh7rjgZnphY3pgIHjg5Hjgrrjg6vjgILlhaggOSDjgrnjg4bjg7zjgrjjgIJBSSDphY3ou4rkv4Ljga7oqJjpjLLjgavmjJHjgoDjgII8L3A+CiAgICAgICAgPGEgY2xhc3M9InBsYXkiIGhyZWY9ImhhaXNoYWJhbi8iPumBiuOBtjwvYT4KICAgICAgPC9kaXY+CiAgICA8L2xpPgogIDwvdWw+CgogIDxzZWN0aW9uIGNsYXNzPSJob3ciIGFyaWEtbGFiZWw9IuODjeODg+ODiOOBp+mBiuOBtuOBq+OBryI+CiAgICA8ZGl2PgogICAgICA8aDI+5Y+L6YGU44Go44ON44OD44OI44Gn6YGK44G2PC9oMj4KICAgICAgPG9sPgogICAgICAgIDxsaT4xIOS6uuOBjOOCsuODvOODoOOCkumWi+OBjeOAgeOAjOODjeODg+ODiOOBp+OAjeOCkumBuOOCk+OBp+mDqOWxi+OCkuOBpOOBj+OCi+OAgjwvbGk+CiAgICAgICAgPGxpPuWHuuOBpuOBjeOBn+OAjOaLm+W+heODquODs+OCr+OCkuOCs+ODlOODvOOAjeOCkuaKvOOBl+OBpuOAgURpc2NvcmQg44Gq44Gp44Gr6LK844KL44CCPC9saT4KICAgICAgICA8bGk+5Y+L6YGU44Gv44Oq44Oz44Kv44KS6ZaL44GP44Gg44GR44Gn6YOo5bGL44Gr5YWl44KM44KL44CC44Gd44KN44Gj44Gf44KJ44CB6YOo5bGL44KS44Gk44GP44Gj44Gf5Lq644GM44K544K/44O844OI44CCPC9saT4KICAgICAgPC9vbD4KICAgIDwvZGl2PgogICAgPGRpdj4KICAgICAgPGgyPuefpeOBo+OBpuOBiuOBj+OBqOWuieW/g+OBquOBk+OBqDwvaDI+CiAgICAgIDx1bD4KICAgICAgICA8bGk+6YOo5bGL44KS44Gk44GP44Gj44Gf5Lq644Gu44OW44Op44Km44K244Gn44Ky44O844Og44KS6YCy44KB44Gm44GE44KL44Gu44Gn44CB44Gd44Gu5Lq644GM44Oa44O844K444KS6ZaJ44GY44KL44Go5YWo5ZOh44Gu6Kmm5ZCI44GM57WC44KP44KL44CCPC9saT4KICAgICAgICA8bGk+5Lya56S+44KE5a2m5qCh44Gu44ON44OD44OI44Ov44O844Kv44Gq44Gp44CB5Zue57ea44Gr44KI44Gj44Gm44Gv44Gk44Gq44GM44KJ44Gq44GE44GT44Go44GM44GC44KL44CC44Gd44Gu44Go44GN44Gv44K544Oe44Ob44Gu44OG44K244Oq44Oz44Kw44Gq44Gp5Yil44Gu5Zue57ea44Gn6Kmm44GZ44CCPC9saT4KICAgICAgICA8bGk+6KiY6Yyy44KE44K744O844OW44Gv44CB6YGK44KT44Gg44OW44Op44Km44K244Gu5Lit44Gr44Gg44GR5q6L44KL44CCPC9saT4KICAgICAgPC91bD4KICAgIDwvZGl2PgogIDwvc2VjdGlvbj4KCiAgPGZvb3Rlcj7jganjga7jgrLjg7zjg6DjgoIgMSDmnprjga4gSFRNTCDjg5XjgqHjgqTjg6vjgafjgafjgY3jgabjgYTjgb7jgZnjgILpgYrjgbPmlrnjga/lkITjgrLjg7zjg6Djga7jg5rjg7zjgrjjga7kuIvjgavmm7jjgYTjgabjgYLjgorjgb7jgZnjgII8L2Zvb3Rlcj4KPC9kaXY+CjwvaHRtbD4K</script>
+<script>
+(() => {
+  const KEY = 'kikitamu-minigames-pass', WANT = 'f250eb81';
+  const hash = w => {
+    const s = 'kikitamu-minigames:' + w.normalize('NFKC').trim().toLowerCase();
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+  };
+  // replace this little page with the real one (the address, including #join=..., stays as it is)
+  const show = () => {
+    const bin = atob(document.getElementById('page').textContent.trim());
+    const html = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+    document.open(); document.write(html); document.close();
+  };
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch {}
+  if (saved === WANT) { document.addEventListener('DOMContentLoaded', show); return; }
+  const gate = document.getElementById('gate'), pw = document.getElementById('pw'), msg = document.getElementById('msg');
+  gate.hidden = false; pw.focus();
+  document.getElementById('f').addEventListener('submit', e => {
+    e.preventDefault();
+    if (hash(pw.value) !== WANT) { msg.textContent = '合言葉が違います。'; pw.select(); return; }
+    try { localStorage.setItem(KEY, WANT); } catch {}
+    show();
+  });
+})();
+</script>
 </html>
